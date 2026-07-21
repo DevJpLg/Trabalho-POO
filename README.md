@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>💊 Farmácia Bairro Saúde</h1>
+  <h1>Farmácia Bairro Saúde</h1>
   <p><strong>Sistema de gestão operacional para farmácias de pequeno porte.</strong></p>
   <p>
     <i>POO - Instituto Federal Fluminense (IFF) - Campus Campos Centro</i><br>
@@ -7,9 +7,7 @@
   </p>
 </div>
 
----
-
-## 📌 Visão Geral
+## Visão Geral
 
 O sistema gerencia o fluxo completo de uma farmácia: **estoque, vendas e prescrições médicas**. Ele lida com quatro perfis de usuário, garantindo segurança na venda de medicamentos controlados.
 
@@ -21,40 +19,32 @@ O sistema gerencia o fluxo completo de uma farmácia: **estoque, vendas e prescr
 ## 🛠️ Stack Tecnológica
 
 | Camada | Tecnologias |
-| :--- | :--- |
+| : | : |
 | **Backend** | TypeScript, Node.js, Express, `ts-node-dev` |
 | **Banco & ORM** | MySQL, Prisma ORM (v7 + Driver Adapter) |
 | **Frontend** | React, Tailwind CSS *(Escopo Futuro)* |
 
-## 🚀 Como Rodar Localmente
+## Como Rodar Localmente
 
 ### 1. Preparação
 ```bash
+git clone <URL_DO_REPOSITORIO>
+cd Trabalho-POO
 npm install
 ```
 
 ### 2. Configurar Ambiente (`.env`)
-O projeto já utiliza o arquivo `.env` diretamente (que é enviado ao repositório). As configurações de conexão com o MySQL e servidor já estão definidas:
+Duplique o arquivo `.env.example` e renomeie para `.env`.
+> ⚠️ **Atenção:** Atualize a senha (`DATABASE_PASSWORD` e `DATABASE_URL`) com a sua **senha real do MySQL local**.
 
 ```env
-# Banco de dados MySQL
-# URL usada pelo Prisma CLI (migrações, studio)
-DATABASE_URL="mysql://root:root@localhost:3306/farmacia_bairro_saude"
-
-# Variáveis separadas usadas pelo driver adapter no código
+DATABASE_URL="mysql://root:SUA_SENHA_AQUI@localhost:3306/farmacia_bairro_saude"
 DATABASE_HOST="localhost"
-DATABASE_PORT=3306
 DATABASE_USER="root"
-DATABASE_PASSWORD="root"
+DATABASE_PASSWORD="SUA_SENHA_AQUI"
+DATABASE_PORT=3306
 DATABASE_NAME="farmacia_bairro_saude"
-
-# Servidor
 PORT=3333
-NODE_ENV=development
-
-# JWT (autenticação futura)
-JWT_SECRET="trocar-por-um-segredo-forte"
-JWT_EXPIRES_IN="1d"
 ```
 
 ### 3. Criar Banco e Inserir Dados (Script `seed.sql`)
@@ -83,7 +73,7 @@ mysql -u root -p < prisma/seed.sql
 - **Iniciar Servidor API**: `npm run dev` *(roda em http://localhost:3333)*
 - **Visualizar Banco (Prisma Studio)**: `npx prisma studio` *(roda em http://localhost:5555)*
 
----
+
 
 ## 📁 Arquitetura (Bounded Contexts)
 
@@ -104,9 +94,9 @@ farmacia-bairro-saude/
 ```
 </details>
 
----
 
-## 🤖 Regras de Negócio (Contexto para Desenvolvedores e IAs)
+
+## Regras de Negócio
 
 1. **Validade & Estoque:**
    - Produtos vencidos **não** podem ser vendidos.
