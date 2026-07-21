@@ -1,0 +1,37 @@
+{
+  "name": "farmacia-bairro-saude",
+  "version": "0.1.0",
+  "description": "Sistema de gestão para a Farmácia Bairro Saúde — controle de estoque, vendas e prescrições médicas.",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "keywords": [
+    "farmacia",
+    "gestao",
+    "estoque",
+    "vendas",
+    "prescricao"
+  ],
+  "author": "João Pedro Lopes, Mateus Ramos",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.1",
+    "prisma": "^7.9.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}
