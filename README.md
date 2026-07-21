@@ -42,7 +42,8 @@ farmacia-bairro-saude/
 ├── prisma.config.ts            # Arquivo de configuração de datasource do Prisma 7
 │
 ├── prisma/
-│   └── schema.prisma           # Schema do banco de dados (Models, Enums e Relacionamentos)
+│   ├── schema.prisma           # Schema do banco de dados (Models, Enums e Relacionamentos)
+│   └── seed.sql                # Script SQL de criação de tabelas e dados de teste/desenvolvimento
 │
 └── src/
     ├── app.ts                  # Instância do Express, middlewares globais e rotas
@@ -83,6 +84,7 @@ O banco de dados foi projetado em MySQL através do Prisma ORM (`prisma/schema.p
 - [x] Estrutura de diretórios em TypeScript por módulos/domínios.
 - [x] Configurações de ambiente, TypeScript e dependências base.
 - [x] Schema do Prisma (`schema.prisma`) modelado em MySQL com todas as entidades, enums e relacionamentos.
+- [x] Script SQL (`prisma/seed.sql`) de criação e população do banco com dados de teste realistas.
 - [x] Integração com Prisma 7 utilizando `prisma.config.ts` e `@prisma/adapter-mariadb`.
 - [x] Geração do Prisma Client (`prisma generate`) em `src/generated/prisma`.
 - [x] Boilerplate das camadas de Controller, Service, Repository e Routes em cada módulo.
@@ -122,18 +124,13 @@ O banco de dados foi projetado em MySQL através do Prisma ORM (`prisma/schema.p
    PORT=3333
    ```
 
-4. **Criar a base de dados MySQL (caso ainda não exista):**
-   ```sql
-   CREATE DATABASE IF NOT EXISTS farmacia_bairro_saude;
-   ```
-
-5. **Rodar as migrações do banco e gerar o Prisma Client:**
+4. **Popular o banco de dados com a estrutura e dados de teste (opção via SQL direto):**
    ```bash
-   npx prisma migrate dev --name init
-   npx prisma generate
+   mysql -u root -p < prisma/seed.sql
    ```
+   *(Ou execute `npx prisma migrate dev --name init` e `npx prisma generate` se preferir gerenciar via Prisma CLI).*
 
-6. **Iniciar o servidor em modo de desenvolvimento:**
+5. **Iniciar o servidor em modo de desenvolvimento:**
    ```bash
    npm run dev
    ```
