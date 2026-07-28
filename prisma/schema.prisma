@@ -41,8 +41,6 @@ enum Classificacao {
 // Models
 // =============================================================================
 
-/// Usuário do sistema — perfil único (Gerente, Atendente, Caixa ou Farmacêutico).
-/// O campo `numeroCRF` é preenchido apenas quando perfil == FARMACEUTICO.
 model Usuario {
   id        Int        @id @default(autoincrement())
   nome      String     @db.VarChar(150)
@@ -53,16 +51,15 @@ model Usuario {
   numeroCRF String?    @db.VarChar(20)
 
   // Relações
-  vendasComoAtendente Venda[]       @relation("VendaAtendente")
-  vendasComoCaixa     Venda[]       @relation("VendaCaixa")
-  notificacoes        Notificacao[]
+  vendasComoAtendente      Venda[]       @relation("VendaAtendente")
+  vendasComoCaixa          Venda[]       @relation("VendaCaixa")
+  // Farmacêutico avalia vendas com medicamentos controlados/prescritos (não participa da venda em si)
+  avaliacoesComoFarmaceutico Venda[]     @relation("AvaliacaoFarmaceutico")
+  notificacoes               Notificacao[]
 
   @@map("usuarios")
 }
 
-/// Produto cadastrado na farmácia.
-/// O campo `quantidadeEstoque` faz o papel do controle de estoque
-/// (decisão: sem tabela Estoque separada — ver justificativa no walkthrough).
 model Produto {
   id                  Int           @id @default(autoincrement())
   nome                String        @db.VarChar(200)
@@ -81,12 +78,12 @@ model Produto {
   validade            DateTime?
   classeControle      String?       @db.VarChar(30)
   retencaoReceita     Boolean       @default(false)
-  validadeReceita     Int?          // Em dias
+  validadeReceita     Int?
   generico            Boolean       @default(false)
   lote                String?       @db.VarChar(50)
   preco               Decimal       @db.Decimal(10, 2)
   dataFabricacao      DateTime?
-  quantidadeMaxima    Int?          // Qtd máxima permitida por receita
+  quantidadeMaxima    Int?
 
   // Relações
   itensVenda ItemVenda[]
@@ -94,9 +91,6 @@ model Produto {
   @@map("produtos")
 }
 
-/// Venda realizada na farmácia.
-/// `atendenteId` é obrigatório (quem iniciou), `caixaId` é preenchido
-/// somente ao confirmar pagamento.
 model Venda {
   id       Int         @id @default(autoincrement())
   dataHora DateTime    @default(now())
@@ -108,6 +102,10 @@ model Venda {
   caixaId Int?
   caixa   Usuario? @relation("VendaCaixa", fields: [caixaId], references: [id])
 
+  // Farmacêutico responsável pela avaliação (quando a venda exige validação)
+  farmaceuticoId Int?
+  farmaceutico   Usuario? @relation("AvaliacaoFarmaceutico", fields: [farmaceuticoId], references: [id])
+
   // Relações
   itens        ItemVenda[]
   prescricoes  Prescricao[]
@@ -116,9 +114,6 @@ model Venda {
   @@map("vendas")
 }
 
-/// Item individual dentro de uma Venda.
-/// `aprovadoFarmaceutico` indica se o farmacêutico já validou este item
-/// (relevante para produtos controlados/prescritos).
 model ItemVenda {
   id                   Int     @id @default(autoincrement())
   quantidade           Int
@@ -133,9 +128,6 @@ model ItemVenda {
   @@map("itens_venda")
 }
 
-/// Prescrição / receita médica vinculada a uma Venda.
-/// Uma venda pode ter 0 ou mais prescrições (ex: venda com dois
-/// controlados de receitas distintas).
 model Prescricao {
   id                Int      @id @default(autoincrement())
   numeroPrescricao  String   @db.VarChar(50)
@@ -146,7 +138,7 @@ model Prescricao {
   retencao          Boolean  @default(false)
   dataEmissao       DateTime
   dataValidade      DateTime
-  anexo             String?  @db.VarChar(500) // Caminho/URL do arquivo digitalizado
+  anexo             String?  @db.VarChar(500)
   retida            Boolean  @default(false)
   quantidadeMaxima  Int?
 
@@ -156,13 +148,10 @@ model Prescricao {
   @@map("prescricoes")
 }
 
-/// Notificação interna enviada ao farmacêutico (ex: prescrição pendente).
-/// `vendaId` é opcional — indica a venda que originou a notificação.
 model Notificacao {
   id       Int      @id @default(autoincrement())
   mensagem String   @db.Text
   dataHora DateTime @default(now())
-  lida     Boolean  @default(false)
 
   farmaceuticoId Int
   farmaceutico   Usuario @relation(fields: [farmaceuticoId], references: [id])

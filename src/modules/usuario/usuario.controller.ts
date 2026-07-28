@@ -7,28 +7,27 @@ import { Request, Response } from "express";
 export class UsuarioController {
   // TODO: injetar UsuarioService
 
-  async criar(_req: Request, res: Response): Promise<void> {
-    // TODO: implementar criação de usuário
+  async login(_req: Request, res: Response): Promise<boolean> {
+    return true;
+  }
+
+  async logout(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async listar(_req: Request, res: Response): Promise<void> {
-    // TODO: implementar listagem de usuários
+  async cadastrarUsuario(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async buscarPorId(_req: Request, res: Response): Promise<void> {
-    // TODO: implementar busca por ID
+  async listarUsuario(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async atualizar(_req: Request, res: Response): Promise<void> {
-    // TODO: implementar atualização de usuário
+  async editarUsuario(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async desativar(_req: Request, res: Response): Promise<void> {
-    // TODO: implementar desativação (soft delete)
+  async deletarUsuario(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 }

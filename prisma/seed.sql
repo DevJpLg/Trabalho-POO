@@ -101,12 +101,15 @@ CREATE TABLE vendas (
   dataHora    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status      ENUM('EM_ANDAMENTO','EM_AVALIACAO','AGUARDANDO_PAGAMENTO','FINALIZADA','CANCELADA')
               NOT NULL DEFAULT 'EM_ANDAMENTO',
-  atendenteId INT      NOT NULL,
-  caixaId     INT      NULL,
+  atendenteId    INT      NOT NULL,
+  caixaId        INT      NULL,
+  -- Farmacêutico que avaliou a venda (relação de avaliação, não de operação de venda)
+  farmaceuticoId INT      NULL,
 
   PRIMARY KEY (id),
-  CONSTRAINT fk_vendas_atendente FOREIGN KEY (atendenteId) REFERENCES usuarios(id),
-  CONSTRAINT fk_vendas_caixa     FOREIGN KEY (caixaId)     REFERENCES usuarios(id)
+  CONSTRAINT fk_vendas_atendente    FOREIGN KEY (atendenteId)    REFERENCES usuarios(id),
+  CONSTRAINT fk_vendas_caixa        FOREIGN KEY (caixaId)        REFERENCES usuarios(id),
+  CONSTRAINT fk_vendas_farmaceutico FOREIGN KEY (farmaceuticoId) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -271,22 +274,22 @@ INSERT INTO produtos (id, nome, codigoBarras, descricao, principioAtivo, concent
 -- -----------------------------------------------------------------------------
 -- 3.3 Vendas (uma em cada status do fluxo)
 -- -----------------------------------------------------------------------------
-INSERT INTO vendas (id, dataHora, status, atendenteId, caixaId) VALUES
+INSERT INTO vendas (id, dataHora, status, atendenteId, caixaId, farmaceuticoId) VALUES
 
 -- Venda 1: EM_ANDAMENTO — atendente iniciou, só itens livres por ora
-(1, '2026-07-21 09:00:00', 'EM_ANDAMENTO', 2, NULL),
+(1, '2026-07-21 09:00:00', 'EM_ANDAMENTO', 2, NULL, NULL),
 
 -- Venda 2: EM_AVALIACAO — tem produto prescrito, aguardando farmacêutico
-(2, '2026-07-21 10:15:00', 'EM_AVALIACAO', 2, NULL),
+(2, '2026-07-21 10:15:00', 'EM_AVALIACAO', 2, NULL, NULL),
 
 -- Venda 3: AGUARDANDO_PAGAMENTO — farmacêutico já aprovou, caixa ainda não finalizou
-(3, '2026-07-21 11:30:00', 'AGUARDANDO_PAGAMENTO', 5, NULL),
+(3, '2026-07-21 11:30:00', 'AGUARDANDO_PAGAMENTO', 5, NULL, 3),
 
--- Venda 4: FINALIZADA — fluxo completo (atendente → farmacêutico → caixa)
-(4, '2026-07-20 14:00:00', 'FINALIZADA', 2, 4),
+-- Venda 4: FINALIZADA — fluxo completo (atendente → avaliação farmacêutico → caixa)
+(4, '2026-07-20 14:00:00', 'FINALIZADA', 2, 4, 3),
 
 -- Venda 5: CANCELADA — venda que foi abortada
-(5, '2026-07-19 16:45:00', 'CANCELADA', 5, NULL);
+(5, '2026-07-19 16:45:00', 'CANCELADA', 5, NULL, NULL);
 
 -- -----------------------------------------------------------------------------
 -- 3.4 Itens de Venda
