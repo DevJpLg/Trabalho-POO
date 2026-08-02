@@ -6,6 +6,7 @@ import type { PrismaClient } from "../../generated/prisma/client";
 export default interface InterfaceUsuarioRepository {
     cadastrarUsuario(usuario: Usuario): Promise<boolean>;
     listarUsuarios(busca: string): Promise<Usuario[] | null>;
+    buscarUsuarioPorId(id: number): Promise<Usuario | null>;
     editarUsuario(usuario: Usuario): Promise<boolean>;
     deletarUsuario(id: number): Promise<boolean>;
 }
