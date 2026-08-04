@@ -16,11 +16,13 @@ import ProdutoRepository from "../../modules/produto/produto.repository";
 // import ProdutoFactory from "../../modules/produto/produto.factory";
 import ProdutoService from "../../modules/produto/produto.service";
 import ProdutoController from "../../modules/produto/produto.controller";
+import ProdutoMapper from "../../modules/produto/produto.mapper";
 
+const produtoMapper = new ProdutoMapper();
 // const produtoFactory = new ProdutoFactory();
 const produtoRepository = new ProdutoRepository(prisma);
 const produtoService = new ProdutoService(produtoRepository);
-const produtoController = new ProdutoController(produtoService);
+const produtoController = new ProdutoController(produtoService, produtoMapper);
 
 // ========== Módulo Venda ========== //
 import VendaRepository from "../../modules/venda/venda.repository";

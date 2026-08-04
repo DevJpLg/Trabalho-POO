@@ -71,7 +71,7 @@ model Produto {
   fabricante          String        @db.VarChar(200)
   numeroRegAnvisa     String?       @db.VarChar(30)
   tarja               String?       @db.VarChar(30)
-  categoria           String?       @db.VarChar(80)
+  categoria           String        @db.VarChar(80)
   classificacao       Classificacao @default(LIVRE)
   quantidadeEstoque   Int           @default(0)
   localEstoque        String?       @db.VarChar(100)
@@ -84,6 +84,7 @@ model Produto {
   preco               Decimal       @db.Decimal(10, 2)
   dataFabricacao      DateTime?
   quantidadeMaxima    Int?
+  isActive            Boolean       @default(true)
 
   // Relações
   itensVenda ItemVenda[]

@@ -11,13 +11,13 @@ export type DadosProduto = {
     codigoBarras: string;
     principioAtivo: string;
     fabricante: string;
+    categoria: string;
     preco: number;
     descricao?: string | null;
     concentracao?: string | null;
     formulaFarmaceutica?: string | null;
     numeroRegAnvisa?: string | null;
     tarja?: string | null;
-    categoria?: string;
     classificacao?: Classificacao;
     quantidadeEstoque?: number;
     localEstoque?: string | null;
@@ -29,6 +29,7 @@ export type DadosProduto = {
     lote?: string | null;
     dataFabricacao?: Date | null;
     quantidadeMaxima?: number | null;
+    isActive?: boolean;
 };
 
 export default class Produto {
@@ -42,7 +43,7 @@ export default class Produto {
     private fabricante: string;
     private numeroRegAnvisa: string | null;
     private tarja: string | null;
-    private categoria: string | null;
+    private categoria: string;
     private classificacao: Classificacao;
     private quantidadeEstoque: number;
     private localEstoque: string | null;
@@ -55,6 +56,7 @@ export default class Produto {
     private preco: number;
     private dataFabricacao: Date | null;
     private quantidadeMaxima: number | null;
+    private isActive: boolean;
 
     constructor(id: number, dados: DadosProduto) {
         this.id = id;
@@ -67,7 +69,7 @@ export default class Produto {
         this.fabricante = dados.fabricante;
         this.numeroRegAnvisa = dados.numeroRegAnvisa ?? null;
         this.tarja = dados.tarja ?? null;
-        this.categoria = dados.categoria ?? null;
+        this.categoria = dados.categoria;
         this.classificacao = dados.classificacao ?? Classificacao.LIVRE;
         this.quantidadeEstoque = dados.quantidadeEstoque ?? 0;
         this.localEstoque = dados.localEstoque ?? null;
@@ -80,6 +82,7 @@ export default class Produto {
         this.preco = dados.preco;
         this.dataFabricacao = dados.dataFabricacao ?? null;
         this.quantidadeMaxima = dados.quantidadeMaxima ?? null;
+        this.isActive = dados.isActive ?? true;
     }
 
     public getId(): number { return this.id; }
@@ -92,7 +95,7 @@ export default class Produto {
     public getFabricante(): string { return this.fabricante; }
     public getNumeroRegAnvisa(): string | null { return this.numeroRegAnvisa; }
     public getTarja(): string | null { return this.tarja; }
-    public getCategoria(): string | null { return this.categoria; }
+    public getCategoria(): string { return this.categoria; }
     public getClassificacao(): Classificacao { return this.classificacao; }
     public getQuantidadeEstoque(): number { return this.quantidadeEstoque; }
     public getLocalEstoque(): string | null { return this.localEstoque; }
@@ -105,6 +108,7 @@ export default class Produto {
     public getPreco(): number { return this.preco; }
     public getDataFabricacao(): Date | null { return this.dataFabricacao; }
     public getQuantidadeMaxima(): number | null { return this.quantidadeMaxima; }
+    public getIsActive(): boolean { return this.isActive; }
 
     public static criarProduto(dados: DadosProduto): Produto {
         if(!Produto.validarProduto(dados)) {
@@ -113,13 +117,13 @@ export default class Produto {
 
         const id = randomInt(1, 1000000);
 
-        const produto = new Produto(id, dados);
+        const produto = new Produto(id, { ...dados, isActive: true });
 
         return produto;
     }
 
     public static validarProduto(dados: DadosProduto): boolean {
-        if(dados.nome === "" || dados.codigoBarras === "" || dados.principioAtivo === "" || dados.fabricante === "") {
+        if(dados.nome === "" || dados.codigoBarras === "" || dados.principioAtivo === "" || dados.fabricante === "" || dados.categoria === "") {
             return false;
         }
 
@@ -150,29 +154,4 @@ export default class Produto {
         return true;
     }
 
-    public estaVencido(): boolean {
-        if(this.validade === null) {
-            return false;
-        }
-        return this.validade.getTime() < Date.now();
-    }
-
-    public estaProximoDoVencimento(dias: number = 30): boolean {
-        if(this.validade === null || this.estaVencido()) {
-            return false;
-        }
-
-        const limite = new Date();
-        limite.setDate(limite.getDate() + dias);
-
-        return this.validade.getTime() <= limite.getTime();
-    }
-
-    public exigePrescricao(): boolean {
-        return this.classificacao !== Classificacao.LIVRE;
-    }
-
-    public possuiEstoqueSuficiente(qtd: number): boolean {
-        return this.quantidadeEstoque >= qtd;
-    }
 }

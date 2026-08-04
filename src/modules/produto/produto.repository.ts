@@ -8,11 +8,14 @@ export interface InterfaceProdutoRepository {
     buscarProduto(busca: string): Promise<Produto[] | null>;
     buscarProdutoPorId(id: number): Promise<Produto | null>;
     buscarProdutoPorCodigoBarras(codigoBarras: string): Promise<Produto | null>;
+    buscarQuantidadeEstoque(id: number): Promise<number | null>
+    buscarDataVencimento(id: number): Promise<Date | null>;
+    buscarIsActiveProduto(id: number): Promise<boolean | null>;
     listarProdutosPorValidade(dataLimite: Date): Promise<Produto[] | null>;
     editarProduto(produto: Produto): Promise<boolean>;
     deletarProduto(id: number): Promise<boolean>;
     realizarEntrada(produto: Produto, qtd: number): Promise<boolean>;
-    realizarBaixa(produto: Produto, qtd: number): Promise<boolean>;
+    realizarBaixa(id: number, qtd: number): Promise<boolean>;
     alterarValidade(produto: Produto, novaData: Date): Promise<boolean>;
     bloquearProduto(produto: Produto): Promise<boolean>;
 }
@@ -49,6 +52,7 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
             preco: Number(rows.preco),
             dataFabricacao: rows.dataFabricacao,
             quantidadeMaxima: rows.quantidadeMaxima,
+            isActive: rows.isActive,
         });
     }
 
@@ -80,6 +84,7 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
                 preco: produto.getPreco(),
                 dataFabricacao: produto.getDataFabricacao(),
                 quantidadeMaxima: produto.getQuantidadeMaxima(),
+                isActive: produto.getIsActive(),
             },
         });
 
@@ -96,7 +101,8 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
                 { nome: { contains: busca } },
                 { codigoBarras: { contains: busca } },
                 { principioAtivo: { contains: busca } },
-                { fabricante: { contains: busca } }
+                { fabricante: { contains: busca } },
+                { categoria: { contains: busca } }
             ]}
         });
 
@@ -114,10 +120,12 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
                     { nome: { contains: busca } },
                     { codigoBarras: { contains: busca } },
                     { principioAtivo: { contains: busca } },
-                    { fabricante: { contains: busca } }
+                    { fabricante: { contains: busca } },
+                    { categoria: { contains: busca } }
                 ]},
                 { quantidadeEstoque: { gt: 0 } },
-                { validade: { gt: new Date() } }
+                { validade: { gt: new Date() } },
+                { isActive: true }
             ]}
         });
 
@@ -132,7 +140,10 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
         const resultado = await this.prisma.produto.findUnique({
             where: { id: id },
         });
-        return resultado ? this.rebuildProduto(resultado) : null;
+        if (resultado !== null) {
+            return this.rebuildProduto(resultado);
+        }
+        return null;
     }
 
 
@@ -140,9 +151,44 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
         const resultado = await this.prisma.produto.findUnique({
             where: { codigoBarras: codigoBarras },
         });
-        return resultado ? this.rebuildProduto(resultado) : null;
+        if (resultado !== null) {
+            return this.rebuildProduto(resultado);
+        }
+        return null;
     }
 
+    public async buscarQuantidadeEstoque(id: number): Promise<number | null> {
+        const resultado = await this.prisma.produto.findFirst({
+            where: { id: id },
+            select: { quantidadeEstoque: true },
+        });
+        if (resultado !== null) {
+            return resultado.quantidadeEstoque;
+        }
+        return null;
+    }
+
+    public async buscarDataVencimento(id: number): Promise<Date | null> {
+        const resultado = await this.prisma.produto.findUnique({
+            where: { id: id },
+            select: { validade: true },
+        });
+        if (resultado !== null) {
+            return resultado.validade;
+        }
+        return null;
+    }
+
+    public async buscarIsActiveProduto(id: number): Promise<boolean | null> {
+        const resultado = await this.prisma.produto.findUnique({
+            where: { id: id },
+            select: { isActive: true },
+        });
+        if (resultado !== null) {
+            return resultado.isActive;
+        }
+        return null;
+    }
 
     public async listarProdutosPorValidade(dataLimite: Date): Promise<Produto[] | null> {
         const resultado = await this.prisma.produto.findMany({
@@ -183,6 +229,7 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
                 preco: produto.getPreco(),
                 dataFabricacao: produto.getDataFabricacao(),
                 quantidadeMaxima: produto.getQuantidadeMaxima(),
+                isActive: produto.getIsActive(),
             },
         });
         return resultado ? true : false;
@@ -206,9 +253,9 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
-    public async realizarBaixa(produto: Produto, qtd: number): Promise<boolean> {
+    public async realizarBaixa(id: number, qtd: number): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
-            where: { id: produto.getId(), quantidadeEstoque: { gte: qtd } },
+            where: { id: id},
             data: { quantidadeEstoque: { decrement: qtd } },
         });
         return resultado ? true : false;
@@ -227,7 +274,7 @@ export default class ProdutoRepository implements InterfaceProdutoRepository {
     public async bloquearProduto(produto: Produto): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
             where: { id: produto.getId() },
-            data: { quantidadeEstoque: 0 },
+            data: { isActive: !produto.getIsActive() },
         });
         return resultado ? true : false;
     }

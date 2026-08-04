@@ -43,8 +43,8 @@ export default class ProdutoService implements InterfaceProdutoService {
                 return new Error("Erro ao criar produto");
             }
 
-            const produtoCadastrado = await this.repository.cadastrarProduto(produtoCriado);
-            if(!produtoCadastrado) {
+            const foiCadastrado = await this.repository.cadastrarProduto(produtoCriado);
+            if(!foiCadastrado) {
                 return new Error("Erro ao cadastrar produto");
             }
             return true;
@@ -62,7 +62,7 @@ export default class ProdutoService implements InterfaceProdutoService {
             }
 
             const resultado = await this.repository.listarProdutos(busca);
-            if(!resultado || resultado === null) {
+            if(!resultado || resultado === null || resultado.length === 0) {
                 return new Error("Nenhum produto encontrado");
             }
             return resultado;
@@ -74,12 +74,8 @@ export default class ProdutoService implements InterfaceProdutoService {
 
     public async buscarProduto(usuarioLogado: Usuario, busca: string): Promise<Produto[] | Error> {
         try {
-            if(!usuarioLogado) {
-                return new Error("Usuário não autorizado");
-            }
-
             const resultado = await this.repository.buscarProduto(busca);
-            if(!resultado || resultado === null) {
+            if(!resultado || resultado === null || resultado.length === 0) {
                 return new Error("Nenhum produto encontrado");
             }
             return resultado;
@@ -109,7 +105,12 @@ export default class ProdutoService implements InterfaceProdutoService {
                 return new Error("Código de barras já cadastrado em outro produto");
             }
 
-            const produtoAtualizado = new Produto(id, dados);
+            const isProdutoAtivo = await this.repository.buscarIsActiveProduto(id);
+            if(isProdutoAtivo === null) {
+                return new Error("Erro ao buscar status do produto");
+            }
+
+            const produtoAtualizado = new Produto(id, {...dados, isActive: isProdutoAtivo ?? true});
 
             const resultado = await this.repository.editarProduto(produtoAtualizado);
             if(!resultado) {
@@ -157,7 +158,13 @@ export default class ProdutoService implements InterfaceProdutoService {
                 return new Error("Produto não encontrado");
             }
 
-            if(produtoExistente.estaVencido()) {
+            const statusProduto = await this.repository.buscarIsActiveProduto(id);
+            if(!statusProduto) {
+                return new Error("Produto bloqueado não pode receber entrada de estoque");
+            }
+
+            const dataVencimento = await this.repository.buscarDataVencimento(id);
+            if(dataVencimento !== null && dataVencimento < new Date()) {
                 return new Error("Produto vencido não pode receber entrada de estoque");
             }
 
@@ -173,7 +180,7 @@ export default class ProdutoService implements InterfaceProdutoService {
 
     public async realizarBaixa(usuarioLogado: Usuario, id: number, qtd: number): Promise<void | Error> {
         try {
-            if(usuarioLogado.getPerfil() !== Perfil.CAIXA) {
+            if(usuarioLogado.getPerfil() !== Perfil.CAIXA || usuarioLogado.getPerfil() !== Perfil.ATENDENTE) {
                 return new Error("Usuário não autorizado");
             }
 
@@ -186,11 +193,16 @@ export default class ProdutoService implements InterfaceProdutoService {
                 return new Error("Produto não encontrado");
             }
 
-            if(!produtoExistente.possuiEstoqueSuficiente(qtd)) {
+            if(!produtoExistente.getIsActive()) {
+                return new Error("Produto bloqueado não pode sofrer baixa de estoque");
+            }
+
+            const quantidadeEstoque = await this.repository.buscarQuantidadeEstoque(id);
+            if(quantidadeEstoque === null || quantidadeEstoque < qtd) {
                 return new Error("Quantidade em estoque insuficiente para a baixa");
             }
 
-            const resultado = await this.repository.realizarBaixa(produtoExistente, qtd);
+            const resultado = await this.repository.realizarBaixa(id, qtd);
             if(!resultado) {
                 return new Error("Erro ao realizar baixa no estoque");
             }
@@ -202,7 +214,7 @@ export default class ProdutoService implements InterfaceProdutoService {
 
     public async alterarValidade(usuarioLogado: Usuario, id: number, novaData: Date): Promise<void | Error> {
         try {
-            if(usuarioLogado.getPerfil() !== Perfil.GERENTE) {
+            if(usuarioLogado.getPerfil() !== Perfil.GERENTE || usuarioLogado.getPerfil() !== Perfil.FARMACEUTICO) {
                 return new Error("Usuário não autorizado");
             }
 
@@ -216,7 +228,7 @@ export default class ProdutoService implements InterfaceProdutoService {
             }
 
             const dataFabricacao = produtoExistente.getDataFabricacao();
-            if(dataFabricacao !== null && novaData <= dataFabricacao) {
+            if(dataFabricacao !== null && novaData <= dataFabricacao && novaData < new Date()) {
                 return new Error("Validade deve ser posterior à data de fabricação");
             }
 
@@ -240,7 +252,7 @@ export default class ProdutoService implements InterfaceProdutoService {
             dataLimite.setDate(dataLimite.getDate() + dias);
 
             const resultado = await this.repository.listarProdutosPorValidade(dataLimite);
-            if(!resultado || resultado === null) {
+            if(!resultado || resultado === null || resultado.length === 0) {
                 return new Error("Nenhum produto encontrado");
             }
             return resultado;
@@ -261,16 +273,12 @@ export default class ProdutoService implements InterfaceProdutoService {
                 return new Error("Produto não encontrado");
             }
 
-            if(!produtoExistente.estaVencido()) {
-                return new Error("Produto ainda está dentro do prazo de validade");
-            }
-
             const resultado = await this.repository.bloquearProduto(produtoExistente);
             if(!resultado) {
-                return new Error("Erro ao bloquear produto");
+                return new Error("Erro ao alterar status do produto");
             }
         } catch (error) {
-            return new Error("Erro ao bloquear produto");
+            return new Error("Erro ao alterar status do produto");
         }
     }
 }

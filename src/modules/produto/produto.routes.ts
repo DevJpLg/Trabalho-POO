@@ -1,18 +1,20 @@
 import { Router } from "express";
-import { ProdutoController } from "./produto.controller";
+import { InterfaceProdutoController } from "./produto.controller";
 
-const produtoRoutes = Router();
-const controller = new ProdutoController();
 
-produtoRoutes.post("/", (req, res) => controller.cadastrarProduto(req, res));
-produtoRoutes.get("/", (req, res) => controller.listarProdutos(req, res));
-produtoRoutes.get("/busca", (req, res) => controller.buscarProduto(req, res));
-produtoRoutes.get("/validades", (req, res) => controller.monitorarValidades(req, res));
-produtoRoutes.put("/:id", (req, res) => controller.editarProduto(req, res));
-produtoRoutes.delete("/:id", (req, res) => controller.deletarProduto(req, res));
-produtoRoutes.patch("/:id/entrada", (req, res) => controller.realizarEntrada(req, res));
-produtoRoutes.patch("/:id/baixa", (req, res) => controller.realizarBaixa(req, res));
-produtoRoutes.patch("/:id/validade", (req, res) => controller.alterarValidade(req, res));
-produtoRoutes.patch("/:id/bloquear", (req, res) => controller.bloquearProduto(req, res));
+export function criarProdutoRoutes(controller: InterfaceProdutoController): Router {
+    const produtoRouter = Router();
 
-export { produtoRoutes };
+    produtoRouter.post("/", (req, res) => controller.cadastrarProduto(req, res));
+    produtoRouter.get("/", (req, res) => controller.listarProdutos(req, res));
+    produtoRouter.get("/busca", (req, res) => controller.buscarProduto(req, res));
+    produtoRouter.get("/validades", (req, res) => controller.monitorarValidades(req, res));
+    produtoRouter.put("/:id", (req, res) => controller.editarProduto(req, res));
+    produtoRouter.delete("/:id", (req, res) => controller.deletarProduto(req, res));
+    produtoRouter.patch("/:id/entrada", (req, res) => controller.realizarEntrada(req, res));
+    produtoRouter.patch("/:id/baixa", (req, res) => controller.realizarBaixa(req, res));
+    produtoRouter.patch("/:id/validade", (req, res) => controller.alterarValidade(req, res));
+    produtoRouter.patch("/:id/bloquear", (req, res) => controller.bloquearProduto(req, res));
+
+    return produtoRouter;
+}

@@ -21,7 +21,7 @@ export default class UsuarioController implements InterfaceUsuarioController {
             id: usuario.getId(),
             nome: usuario.getNome(),
             email: usuario.getEmail(),
-            perfil: usuario.getPerfil()
+            perfil: usuario.getPerfil(),
         };
     }
 
