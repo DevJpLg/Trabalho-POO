@@ -1,33 +1,107 @@
 import { Request, Response } from "express";
+import InterfaceUsuarioService from "./usuario.service";
+import Usuario, { Perfil } from "./index";
 
-/**
- * Controller do módulo Usuário.
- * Responsável por receber as requisições HTTP e delegar ao service.
- */
-export class UsuarioController {
-  // TODO: injetar UsuarioService
+export default interface InterfaceUsuarioController {
+    cadastrarUsuario(req: Request, res: Response): Promise<void>;
+    listarUsuario(req: Request, res: Response): Promise<void>;
+    editarUsuario(req: Request, res: Response): Promise<void>;
+    deletarUsuario(req: Request, res: Response): Promise<void>;
+}
 
-  async login(_req: Request, res: Response): Promise<boolean> {
-    return true;
-  }
 
-  async logout(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+export default class UsuarioController implements InterfaceUsuarioController {
 
-  async cadastrarUsuario(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+    constructor(private readonly service: InterfaceUsuarioService) {
+    }
 
-  async listarUsuario(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
 
-  async editarUsuario(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+    private serializarUsuario(usuario: Usuario) {
+        return {
+            id: usuario.getId(),
+            nome: usuario.getNome(),
+            email: usuario.getEmail(),
+            perfil: usuario.getPerfil()
+        };
+    }
 
-  async deletarUsuario(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+
+    async cadastrarUsuario(req: Request, res: Response): Promise<void> {
+
+        const usuarioLogado = req.usuario; //Vai adicionar o usuario depois, calma
+        const { nome, email, senha, perfil, numeroCRM } = req.body;
+
+        const resultado = await this.service.cadastrarUsuario(
+            usuarioLogado,
+            nome,
+            email,
+            senha,
+            perfil as Perfil,
+            numeroCRM ?? undefined,
+        );
+
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(201).json({ message: "Usuário cadastrado com sucesso." });
+    }
+
+
+    async listarUsuario(req: Request, res: Response): Promise<void> {
+
+        const usuarioLogado = req.usuario; //Vai adicionar o usuario depois, calma
+        const busca = String(req.query.busca ?? "");
+
+        const resultado = await this.service.listarUsuarios(usuarioLogado, busca);
+
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(200).json(resultado.map((usuario) => this.serializarUsuario(usuario)));
+    }
+
+
+    async editarUsuario(req: Request, res: Response): Promise<void> {
+
+        const usuarioLogado = req.usuario; //Vai adicionar o usuario depois, calma
+        const id = Number(req.params.id);
+        const { nome, email, senha, perfil, numeroCRM } = req.body;
+
+        const resultado = await this.service.editarUsuario(
+            usuarioLogado,
+            id,
+            nome,
+            email,
+            senha,
+            perfil as Perfil,
+            numeroCRM,
+        );
+
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(200).json({ message: "Usuário atualizado com sucesso." });
+    }
+
+
+    async deletarUsuario(req: Request, res: Response): Promise<void> {
+
+        const usuarioLogado = req.usuario; //Vai adicionar o usuario depois, calma
+        const id = Number(req.params.id);
+
+        const resultado = await this.service.deletarUsuario(usuarioLogado, id);
+
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(204).send();
+    }
 }

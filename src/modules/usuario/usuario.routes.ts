@@ -1,12 +1,14 @@
 import { Router } from "express";
+import InterfaceUsuarioController from "./usuario.controller";
 
-const usuarioRoutes = Router();
+export function criarUsuarioRoutes(controller: InterfaceUsuarioController): Router {
+    
+    const usuarioRouter = Router();
 
-// TODO: instanciar controller e registrar rotas
-// usuarioRoutes.post("/", controller.criar);
-// usuarioRoutes.get("/", controller.listar);
-// usuarioRoutes.get("/:id", controller.buscarPorId);
-// usuarioRoutes.put("/:id", controller.atualizar);
-// usuarioRoutes.patch("/:id/desativar", controller.desativar);
+    usuarioRouter.get("/", controller.listarUsuario.bind(controller));
+    usuarioRouter.post("/", controller.cadastrarUsuario.bind(controller));
+    usuarioRouter.put("/:id", controller.editarUsuario.bind(controller));
+    usuarioRouter.delete("/:id", controller.deletarUsuario.bind(controller));
 
-export { usuarioRoutes };
+    return usuarioRouter;
+}
