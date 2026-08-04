@@ -1,29 +1,44 @@
 import { Request, Response } from "express";
 
-/**
- * Controller do módulo Produto.
- * Responsável por receber as requisições HTTP e delegar ao service.
- */
 export class ProdutoController {
-  // TODO: injetar ProdutoService
 
-  async criar(_req: Request, res: Response): Promise<void> {
+  async cadastrarProduto(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async listar(_req: Request, res: Response): Promise<void> {
+  async listarProdutos(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async buscarPorId(_req: Request, res: Response): Promise<void> {
+  async buscarProduto(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async atualizar(_req: Request, res: Response): Promise<void> {
+  async editarProduto(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async remover(_req: Request, res: Response): Promise<void> {
+  async deletarProduto(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ message: "Não implementado." });
+  }
+
+  async realizarEntrada(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ message: "Não implementado." });
+  }
+
+  async realizarBaixa(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ message: "Não implementado." });
+  }
+
+  async alterarValidade(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ message: "Não implementado." });
+  }
+
+  async monitorarValidades(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ message: "Não implementado." });
+  }
+
+  async bloquearProduto(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 }
