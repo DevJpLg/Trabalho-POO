@@ -43,7 +43,7 @@ import ItemVendaController from "../../modules/itemVenda/itemVenda.controller";
 
 // const itemVendaFactory = new ItemVendaFactory();
 const itemVendaRepository = new ItemVendaRepository(prisma);
-const itemVendaService = new ItemVendaService(itemVendaRepository);
+const itemVendaService = new ItemVendaService(itemVendaRepository, produtoRepository);
 const itemVendaController = new ItemVendaController(itemVendaService);
 
 // ========== Módulo Prescricao ========== //
