@@ -1,26 +1,134 @@
 import { Request, Response } from "express";
+import Prescricao from "./index";
+import InterfacePrescricaoService from "./prescricao.service";
 
-/**
- * Controller do módulo Prescrição.
- * Responsável pelas operações de prescrições/receitas médicas.
- */
-export class PrescricaoController {
-  // TODO: injetar PrescricaoService
+export default interface InterfacePrescricaoController {
+    cadastrarPrescricao(req: Request, res: Response): Promise<void>;
+    listarPrescricoes(req: Request, res: Response): Promise<void>;
+    listarPrescricoesPorVendaId(req: Request, res: Response): Promise<void>;
+    buscarPrescricaoPorId(req: Request, res: Response): Promise<void>;
+    buscarPrescricaoPorNumeroPrescricao(req: Request, res: Response): Promise<void>;
+    editarPrescricao(req: Request, res: Response): Promise<void>;
+    deletarPrescricao(req: Request, res: Response): Promise<void>;
+}
 
-  async registrar(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
+export class PrescricaoController implements InterfacePrescricaoController {
+
+  constructor(private service: InterfacePrescricaoService) {}
+
+
+  public async cadastrarPrescricao(req: Request, res: Response): Promise<void> {
+    const prescricao = new Prescricao(
+      0,
+      req.body.numeroPrescricao,
+      req.body.nomeMedico,
+      req.body.numeroCrm,
+      req.body.ufCrm,
+      req.body.nomePaciente,
+      req.body.retencao,
+      new Date(req.body.dataEmissao),
+      new Date(req.body.dataValidade),
+      req.body.anexo || '',
+      req.body.retida,
+      req.body.vendaId,
+    )
+
+    const resultado = await this.service.cadastrarPrescricao(prescricao);
+
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+
+    res.status(201).json({ message: 'Prescricao cadastrada com sucesso' });
   }
 
-  async listar(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
+
+  public async listarPrescricoes(req: Request, res: Response): Promise<void> {
+    const busca = String(req.query.busca ?? "");
+
+    const resultado = await this.service.listarPrescricoes(busca);
+
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+    res.status(200).json(resultado);
   }
 
-  async buscarPorId(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
+
+  public async listarPrescricoesPorVendaId(req: Request, res: Response): Promise<void> {
+    const vendaId = Number(req.params.vendaId);
+
+    const resultado = await this.service.listarPrescricoesPorVendaId(vendaId);
+  
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+    res.status(200).json(resultado);
   }
 
-  async avaliar(_req: Request, res: Response): Promise<void> {
-    // Farmacêutico aprova ou rejeita a prescrição
-    res.status(501).json({ message: "Não implementado." });
+  
+  public async buscarPrescricaoPorId(req: Request, res: Response): Promise<void> {
+    const id = Number(req.params.id);
+
+    const resultado = await this.service.buscarPrescricaoPorId(id);
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+    res.status(200).json(resultado);
   }
+
+
+  public async buscarPrescricaoPorNumeroPrescricao(req: Request, res: Response): Promise<void> {
+    const numeroPrescricao = String(req.params.numeroPrescricao);
+
+    const resultado = await this.service.buscarPrescricaoPorNumeroPrescricao(numeroPrescricao);
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+    res.status(200).json(resultado);
+  }
+
+
+  public async editarPrescricao(req: Request, res: Response): Promise<void> {
+    const id = Number(req.params.id);
+    const prescricao = new Prescricao(
+      Number(id),
+      req.body.numeroPrescricao,
+      req.body.nomeMedico,
+      req.body.numeroCrm,
+      req.body.ufCrm,
+      req.body.nomePaciente,
+      req.body.retencao,
+      new Date(req.body.dataEmissao),
+      new Date(req.body.dataValidade),
+      req.body.anexo || '',
+      req.body.retida,
+      req.body.vendaId,
+    )
+
+    const resultado = await this.service.editarPrescricao(prescricao);
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+    res.status(200).json({ message: 'Prescricao editada com sucesso' });
+  }
+
+  
+  public async deletarPrescricao(req: Request, res: Response): Promise<void> {
+    const id = Number(req.params.id);
+
+    const resultado = await this.service.deletarPrescricao(id);
+    if(resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+    res.status(200).json({ message: 'Prescricao deletada com sucesso' });
+  }
+
 }

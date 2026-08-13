@@ -1,11 +1,17 @@
 import { Router } from "express";
+import InterfacePrescricaoController from "./prescricao.controller";
 
-const prescricaoRoutes = Router();
+export function criarPrescricaoRoutes(controller: InterfacePrescricaoController): Router {
 
-// TODO: instanciar controller e registrar rotas
-// prescricaoRoutes.post("/", controller.registrar);
-// prescricaoRoutes.get("/", controller.listar);
-// prescricaoRoutes.get("/:id", controller.buscarPorId);
-// prescricaoRoutes.patch("/:id/avaliar", controller.avaliar);
+    const prescricaoRouter = Router();
 
-export { prescricaoRoutes };
+    prescricaoRouter.post( "/", controller.cadastrarPrescricao.bind(controller) );
+    prescricaoRouter.get( "/", controller.listarPrescricoes.bind(controller));
+    prescricaoRouter.get( "/venda/:vendaId", controller.listarPrescricoesPorVendaId.bind(controller));
+    prescricaoRouter.get( "/:id", controller.buscarPrescricaoPorId.bind(controller));
+    prescricaoRouter.get( "/numero/:numeroPrescricao", controller.buscarPrescricaoPorNumeroPrescricao.bind(controller));[]
+    prescricaoRouter.put( "/:id", controller.editarPrescricao.bind(controller));
+    prescricaoRouter.delete( "/:id", controller.deletarPrescricao.bind(controller));
+
+    return prescricaoRouter;
+}

@@ -32,7 +32,7 @@ export default class UsuarioController implements InterfaceUsuarioController {
         const { nome, email, senha, perfil, numeroCRM } = req.body;
 
         const resultado = await this.service.cadastrarUsuario(
-            usuarioLogado,
+            usuarioLogado as Usuario,
             nome,
             email,
             senha,
@@ -54,7 +54,7 @@ export default class UsuarioController implements InterfaceUsuarioController {
         const usuarioLogado = req.usuario; //Vai adicionar o usuario depois, calma
         const busca = String(req.query.busca ?? "");
 
-        const resultado = await this.service.listarUsuarios(usuarioLogado, busca);
+        const resultado = await this.service.listarUsuarios(usuarioLogado as Usuario, busca);
 
         if (resultado instanceof Error) {
             res.status(400).json({ message: resultado.message });
@@ -72,7 +72,7 @@ export default class UsuarioController implements InterfaceUsuarioController {
         const { nome, email, senha, perfil, numeroCRM } = req.body;
 
         const resultado = await this.service.editarUsuario(
-            usuarioLogado,
+            usuarioLogado as Usuario,
             id,
             nome,
             email,
@@ -95,7 +95,7 @@ export default class UsuarioController implements InterfaceUsuarioController {
         const usuarioLogado = req.usuario; //Vai adicionar o usuario depois, calma
         const id = Number(req.params.id);
 
-        const resultado = await this.service.deletarUsuario(usuarioLogado, id);
+        const resultado = await this.service.deletarUsuario(usuarioLogado as Usuario, id);
 
         if (resultado instanceof Error) {
             res.status(400).json({ message: resultado.message });
