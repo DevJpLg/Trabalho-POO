@@ -1,19 +1,21 @@
 import ItemVenda from "./index";
+import Produto, { Classificacao } from "../produto";
 import { StatusVenda } from "../venda";
 import { prisma } from "../../shared/database";
-import type { PrismaClient, ItemVenda as ItemVendaModel } from "../../generated/prisma/client";
+import type { PrismaClient, ItemVenda as ItemVendaModel, Produto as ProdutoModel } from "../../generated/prisma/client";
+
+type ItemVendaComProdutoModel = ItemVendaModel & { produto: ProdutoModel };
 export interface InterfaceItemVendaRepository {
-    adicionarItem(item: ItemVenda): Promise<boolean>;
-    listarItensVenda(vendaId: number): Promise<ItemVenda[] | null>;
+    adicionarItem(item: ItemVenda): Promise<number | null>;
+    adicionarQuantidadeItem(item: ItemVenda, qtd: number): Promise<boolean>;
+    removerQuantidadeItem(item: ItemVenda, qtd: number): Promise<boolean>;
+    listarItensVenda(vendaId: number, busca?: string): Promise<ItemVenda[] | null>;
     listarItensPendentes(vendaId: number): Promise<ItemVenda[] | null>;
     buscarItemPorId(id: number): Promise<ItemVenda | null>;
     buscarItemPorVendaEProduto(vendaId: number, produtoId: number): Promise<ItemVenda | null>;
     buscarStatusVenda(vendaId: number): Promise<StatusVenda | null>;
-    editarItem(item: ItemVenda): Promise<boolean>;
     atualizarAprovacao(item: ItemVenda): Promise<boolean>;
-    atualizarAprovacaoEmLote(itens: ItemVenda[]): Promise<boolean>;
-    removerItem(id: number): Promise<boolean>;
-    removerItensEmLote(ids: number[]): Promise<boolean>;
+    removerItem(item: ItemVenda): Promise<boolean>;
 }
 export default class ItemVendaRepository implements InterfaceItemVendaRepository {
     private prisma: PrismaClient;
@@ -22,18 +24,45 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
         this.prisma = client;
     }
 
-    private rebuildItemVenda(rows: ItemVendaModel): ItemVenda {
+    private rebuildProduto(rows: ProdutoModel): Produto {
+        return new Produto(rows.id, {
+            nome: rows.nome,
+            codigoBarras: rows.codigoBarras,
+            descricao: rows.descricao,
+            principioAtivo: rows.principioAtivo,
+            concentracao: rows.concentracao,
+            formulaFarmaceutica: rows.formulaFarmaceutica,
+            fabricante: rows.fabricante,
+            numeroRegAnvisa: rows.numeroRegAnvisa,
+            tarja: rows.tarja,
+            categoria: rows.categoria,
+            classificacao: rows.classificacao as Classificacao,
+            quantidadeEstoque: rows.quantidadeEstoque,
+            localEstoque: rows.localEstoque,
+            validade: rows.validade,
+            classeControle: rows.classeControle,
+            retencaoReceita: rows.retencaoReceita,
+            validadeReceita: rows.validadeReceita,
+            generico: rows.generico,
+            lote: rows.lote,
+            preco: Number(rows.preco),
+            dataFabricacao: rows.dataFabricacao,
+            quantidadeMaxima: rows.quantidadeMaxima,
+            isActive: rows.isActive,
+        });
+    }
+
+    private rebuildItemVenda(rows: ItemVendaComProdutoModel): ItemVenda {
         return new ItemVenda(rows.id, {
             quantidade: rows.quantidade,
             aprovadoFarmaceutico: rows.aprovadoFarmaceutico,
             vendaId: rows.vendaId,
             produtoId: rows.produtoId,
+            produto: this.rebuildProduto(rows.produto),
         });
     }
 
-    public async adicionarItem(item: ItemVenda): Promise<boolean> {
-        let retorno = false;
-
+    public async adicionarItem(item: ItemVenda): Promise<number | null> {
         const resultado = await this.prisma.itemVenda.create({
             data: {
                 quantidade: item.getQuantidade(),
@@ -42,16 +71,46 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
                 produtoId: item.getProdutoId(),
             },
         });
-
-        if (resultado.id) {
-            retorno = true;
-        }
-        return retorno;
+        return resultado.id ?? null;
     }
 
-    public async listarItensVenda(vendaId: number): Promise<ItemVenda[] | null> {
+    public async adicionarQuantidadeItem(item: ItemVenda, qtd: number): Promise<boolean> {
+        const resultado = await this.prisma.itemVenda.update({
+            where: { id: item.getId() },
+            data: {
+                quantidade: { increment: qtd },
+                aprovadoFarmaceutico: item.getAprovadoFarmaceutico(),
+            },
+        });
+        return resultado ? true : false;
+    }
+
+    public async removerQuantidadeItem(item: ItemVenda, qtd: number): Promise<boolean> {
+        const resultado = await this.prisma.itemVenda.update({
+            where: { id: item.getId() },
+            data: {
+                quantidade: { decrement: qtd },
+                aprovadoFarmaceutico: item.getAprovadoFarmaceutico(),
+            },
+        });
+        return resultado ? true : false;
+    }
+
+    public async listarItensVenda(vendaId: number, busca: string = ""): Promise<ItemVenda[] | null> {
+        const filtroProduto = busca === "" ? {} : {
+            produto: { OR: [
+                { nome: { contains: busca } },
+                { tarja: { contains: busca } },
+                { fabricante: { contains: busca } },
+                { principioAtivo: { contains: busca } },
+                { categoria: { contains: busca } },
+                { codigoBarras: { contains: busca } }
+            ]}
+        };
+
         const resultado = await this.prisma.itemVenda.findMany({
-            where: { vendaId: vendaId },
+            where: { vendaId: vendaId, ...filtroProduto },
+            include: { produto: true },
             orderBy: { id: "asc" },
         });
 
@@ -67,6 +126,7 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
                 { vendaId: vendaId },
                 { aprovadoFarmaceutico: false }
             ]},
+            include: { produto: true },
             orderBy: { id: "asc" },
         });
 
@@ -79,6 +139,7 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
     public async buscarItemPorId(id: number): Promise<ItemVenda | null> {
         const resultado = await this.prisma.itemVenda.findUnique({
             where: { id: id },
+            include: { produto: true },
         });
         if (resultado !== null) {
             return this.rebuildItemVenda(resultado);
@@ -92,6 +153,7 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
                 { vendaId: vendaId },
                 { produtoId: produtoId }
             ]},
+            include: { produto: true },
         });
         if (resultado !== null) {
             return this.rebuildItemVenda(resultado);
@@ -110,17 +172,6 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
         return null;
     }
 
-    public async editarItem(item: ItemVenda): Promise<boolean> {
-        const resultado = await this.prisma.itemVenda.update({
-            where: { id: item.getId() },
-            data: {
-                quantidade: item.getQuantidade(),
-                aprovadoFarmaceutico: item.getAprovadoFarmaceutico(),
-            },
-        });
-        return resultado ? true : false;
-    }
-
     public async atualizarAprovacao(item: ItemVenda): Promise<boolean> {
         const resultado = await this.prisma.itemVenda.update({
             where: { id: item.getId() },
@@ -129,41 +180,10 @@ export default class ItemVendaRepository implements InterfaceItemVendaRepository
         return resultado ? true : false;
     }
 
-    // Grava a aprovação de todos os itens em uma única transação:
-    // ou a venda inteira é avaliada, ou nada é gravado.
-    public async atualizarAprovacaoEmLote(itens: ItemVenda[]): Promise<boolean> {
-        if (itens.length === 0) {
-            return false;
-        }
-
-        const operacoes = itens.map((item) => this.prisma.itemVenda.update({
-            where: { id: item.getId() },
-            data: { aprovadoFarmaceutico: item.getAprovadoFarmaceutico() },
-        }));
-
-        const resultado = await this.prisma.$transaction(operacoes);
-        return resultado.length === itens.length;
-    }
-
-
-    public async removerItem(id: number): Promise<boolean> {
+    public async removerItem(item: ItemVenda): Promise<boolean> {
         const resultado = await this.prisma.itemVenda.delete({
-            where: { id: id },
+            where: { id: item.getId() },
         });
         return resultado ? true : false;
-    }
-
-
-    public async removerItensEmLote(ids: number[]): Promise<boolean> {
-        if (ids.length === 0) {
-            return false;
-        }
-
-        const operacoes = ids.map((id) => this.prisma.itemVenda.delete({
-            where: { id: id },
-        }));
-
-        const resultado = await this.prisma.$transaction(operacoes);
-        return resultado.length === ids.length;
     }
 }

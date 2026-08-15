@@ -18,12 +18,27 @@ export default class ItemVendaController implements InterfaceItemVendaController
   }
 
   private serializarItemVenda(item: ItemVenda) {
+    const produto = item.getProduto();
+
     return {
       id: item.getId(),
       quantidade: item.getQuantidade(),
+      preco: item.getPreco(),
       aprovadoFarmaceutico: item.getAprovadoFarmaceutico(),
       vendaId: item.getVendaId(),
       produtoId: item.getProdutoId(),
+      produto: produto === null ? null : {
+        id: produto.getId(),
+        nome: produto.getNome(),
+        codigoBarras: produto.getCodigoBarras(),
+        principioAtivo: produto.getPrincipioAtivo(),
+        concentracao: produto.getConcentracao(),
+        fabricante: produto.getFabricante(),
+        tarja: produto.getTarja(),
+        categoria: produto.getCategoria(),
+        classificacao: produto.getClassificacao(),
+        preco: produto.getPreco(),
+      },
     };
   }
 
@@ -45,7 +60,7 @@ export default class ItemVendaController implements InterfaceItemVendaController
       return;
     }
 
-    res.status(201).json({ message: "Item adicionado à venda com sucesso." });
+    res.status(201).json({ message: "Item adicionado à venda com sucesso.", id: resultado });
   }
 
   async listarItensVenda(req: Request, res: Response): Promise<void> {
@@ -56,7 +71,8 @@ export default class ItemVendaController implements InterfaceItemVendaController
     }
 
     const vendaId = Number(req.params.vendaId);
-    const resultado = await this.service.listarItensVenda(usuarioLogado, vendaId);
+    const busca = String(req.query.busca ?? "");
+    const resultado = await this.service.listarItensVenda(usuarioLogado, vendaId, busca);
 
     if (resultado instanceof Error) {
       res.status(400).json({ message: resultado.message });

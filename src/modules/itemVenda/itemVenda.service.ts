@@ -1,14 +1,12 @@
 import { InterfaceItemVendaRepository } from "./itemVenda.repository";
+import InterfaceConsultaProduto from "./produto";
 import ItemVenda from "./index";
-import Produto, { Classificacao } from "../produto";
 import { StatusVenda } from "../venda";
 import Usuario, { Perfil } from "../usuario";
-export interface InterfaceConsultaProduto {
-    buscarProdutoPorId(id: number): Promise<Produto | null>;
-}
+import Farmaceutico from "../usuario/farmaceutico";
 export interface InterfaceItemVendaService {
-    adicionarItem(usuarioLogado: Usuario, vendaId: number, produtoId: number, quantidade: number): Promise<boolean | Error>;
-    listarItensVenda(usuarioLogado: Usuario, vendaId: number): Promise<ItemVenda[] | Error>;
+    adicionarItem(usuarioLogado: Usuario, vendaId: number, produtoId: number, quantidade: number): Promise<number | Error>;
+    listarItensVenda(usuarioLogado: Usuario, vendaId: number, busca?: string): Promise<ItemVenda[] | Error>;
     buscarItemPorId(usuarioLogado: Usuario, id: number): Promise<ItemVenda | Error>;
     atualizarQuantidade(usuarioLogado: Usuario, id: number, quantidade: number): Promise<void | Error>;
     removerItem(usuarioLogado: Usuario, id: number): Promise<void | Error>;
@@ -24,13 +22,12 @@ export default class ItemVendaService implements InterfaceItemVendaService {
         this.repository = repository;
     }
 
-
     private podeGerenciarItens(usuarioLogado: Usuario): boolean {
         return usuarioLogado.getPerfil() === Perfil.ATENDENTE || usuarioLogado.getPerfil() === Perfil.CAIXA;
     }
 
-    private podeAvaliarItens(usuarioLogado: Usuario): boolean {
-        return usuarioLogado.getPerfil() === Perfil.FARMACEUTICO;
+    private podeAvaliarItens(usuarioLogado: Usuario): usuarioLogado is Farmaceutico {
+        return usuarioLogado instanceof Farmaceutico;
     }
 
     private vendaPermiteAlteracaoDeItens(statusVenda: StatusVenda): boolean {
@@ -41,7 +38,7 @@ export default class ItemVendaService implements InterfaceItemVendaService {
         return statusVenda === StatusVenda.EM_AVALIACAO;
     }
 
-    public async adicionarItem(usuarioLogado: Usuario, vendaId: number, produtoId: number, quantidade: number): Promise<boolean | Error> {
+    public async adicionarItem(usuarioLogado: Usuario, vendaId: number, produtoId: number, quantidade: number): Promise<number | Error> {
         try {
             if(!this.podeGerenciarItens(usuarioLogado)) {
                 return new Error("Usuário não autorizado");
@@ -74,51 +71,107 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Produto vencido não pode ser vendido");
             }
 
+            const exigeAvaliacao = Farmaceutico.exigeAvaliacao(produto.getClassificacao());
+            const quantidadeMaxima = produto.getQuantidadeMaxima();
+
+            const itemExistente = await this.repository.buscarItemPorVendaEProduto(vendaId, produtoId);
+
+            // Produto já está na venda: soma na quantidade do item em vez de duplicar a linha.
+            if(itemExistente) {
+                const quantidadeAtual = itemExistente.getQuantidade();
+                const quantidadeTotal = quantidadeAtual + quantidade;
+                const estavaAprovado = itemExistente.getAprovadoFarmaceutico();
+
+                // Item aprovado já saiu do estoque, então só o que está entrando agora precisa estar disponível.
+                const quantidadeNecessaria = estavaAprovado ? quantidade : quantidadeTotal;
+                if(produto.getQuantidadeEstoque() < quantidadeNecessaria) {
+                    return new Error("Quantidade em estoque insuficiente");
+                }
+
+                if(exigeAvaliacao && quantidadeMaxima !== null && quantidadeTotal > quantidadeMaxima) {
+                    return new Error("Quantidade acima do limite permitido por receita");
+                }
+
+                // Mudou a quantidade de um controlado: precisa passar de novo pelo farmacêutico.
+                if(exigeAvaliacao) {
+                    itemExistente.registrarAvaliacao(false);
+                }
+
+                const foiSomado = await this.repository.adicionarQuantidadeItem(itemExistente, quantidade);
+                if(!foiSomado) {
+                    return new Error("Erro ao adicionar item à venda");
+                }
+
+                if(exigeAvaliacao && estavaAprovado) {
+                    // Voltou para a fila de avaliação: o que já tinha saído do estoque volta.
+                    const foiDevolvido = await this.produtoRepository.realizarEntrada(produto, quantidadeAtual);
+                    if(!foiDevolvido) {
+                        return new Error("Erro ao devolver quantidade ao estoque");
+                    }
+                } else if(!exigeAvaliacao) {
+                    // Venda livre continua aprovada: a quantidade nova sai do estoque na hora.
+                    const foiBaixado = await this.produtoRepository.realizarBaixa(produtoId, quantidade);
+                    if(!foiBaixado) {
+                        return new Error("Erro ao dar baixa no estoque");
+                    }
+                }
+
+                return itemExistente.getId();
+            }
+
             if(produto.getQuantidadeEstoque() < quantidade) {
                 return new Error("Quantidade em estoque insuficiente");
             }
 
-            const quantidadeMaxima = produto.getQuantidadeMaxima();
-            if(produto.getClassificacao() !== Classificacao.LIVRE && quantidadeMaxima !== null && quantidade > quantidadeMaxima) {
+            if(exigeAvaliacao && quantidadeMaxima !== null && quantidade > quantidadeMaxima) {
                 return new Error("Quantidade acima do limite permitido por receita");
-            }
-
-            const itemExistente = await this.repository.buscarItemPorVendaEProduto(vendaId, produtoId);
-            if(itemExistente) {
-                return new Error("Produto já adicionado à venda");
             }
 
             const itemCriado = ItemVenda.criarItemVenda({
                 quantidade: quantidade,
                 vendaId: vendaId,
                 produtoId: produtoId,
-                aprovadoFarmaceutico: produto.getClassificacao() === Classificacao.LIVRE,
+                produto: produto,
+                aprovadoFarmaceutico: !exigeAvaliacao,
             });
             if(!itemCriado) {
                 return new Error("Erro ao criar item de venda");
             }
 
-            const foiAdicionado = await this.repository.adicionarItem(itemCriado);
-            if(!foiAdicionado) {
+            const idCriado = await this.repository.adicionarItem(itemCriado);
+            if(idCriado === null) {
                 return new Error("Erro ao adicionar item à venda");
             }
-            return true;
+
+            // Item de venda livre já nasce aprovado, então a baixa no estoque acontece junto.
+            if(!exigeAvaliacao) {
+                const foiBaixado = await this.produtoRepository.realizarBaixa(produtoId, quantidade);
+                if(!foiBaixado) {
+                    return new Error("Erro ao dar baixa no estoque");
+                }
+            }
+
+            return idCriado;
 
         } catch (error) {
             return new Error("Erro ao adicionar item à venda");
         }
     }
 
-    public async listarItensVenda(usuarioLogado: Usuario, vendaId: number): Promise<ItemVenda[] | Error> {
+    public async listarItensVenda(usuarioLogado: Usuario, vendaId: number, busca: string = ""): Promise<ItemVenda[] | Error> {
         try {
             const statusVenda = await this.repository.buscarStatusVenda(vendaId);
             if(statusVenda === null) {
                 return new Error("Venda não encontrada");
             }
 
-            const resultado = await this.repository.listarItensVenda(vendaId);
+            const resultado = await this.repository.listarItensVenda(vendaId, busca);
             if(!resultado || resultado === null || resultado.length === 0) {
                 return new Error("Nenhum item encontrado na venda");
+            }
+
+            for (const item of resultado) {
+                item.calcularValorItem();
             }
             return resultado;
         } catch (error) {
@@ -132,6 +185,8 @@ export default class ItemVendaService implements InterfaceItemVendaService {
             if(!resultado || resultado === null) {
                 return new Error("Item de venda não encontrado");
             }
+
+            resultado.calcularValorItem();
             return resultado;
         } catch (error) {
             return new Error("Erro ao buscar item de venda");
@@ -162,8 +217,8 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Venda não permite alteração de itens");
             }
 
-            const produto = await this.produtoRepository.buscarProdutoPorId(itemExistente.getProdutoId());
-            if(!produto || produto === null) {
+            const produto = itemExistente.getProduto();
+            if(produto === null) {
                 return new Error("Produto não encontrado");
             }
 
@@ -176,24 +231,50 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Produto vencido não pode ser vendido");
             }
 
-            if(produto.getQuantidadeEstoque() < quantidade) {
+            const quantidadeAtual = itemExistente.getQuantidade();
+            const diferenca = quantidade - quantidadeAtual;
+            if(diferenca === 0) {
+                return;
+            }
+
+            const estavaAprovado = itemExistente.getAprovadoFarmaceutico();
+            const exigeAvaliacao = Farmaceutico.exigeAvaliacao(produto.getClassificacao());
+
+            const quantidadeNecessaria = estavaAprovado ? diferenca : quantidade;
+            if(diferenca > 0 && produto.getQuantidadeEstoque() < quantidadeNecessaria) {
                 return new Error("Quantidade em estoque insuficiente");
             }
 
             const quantidadeMaxima = produto.getQuantidadeMaxima();
-            if(produto.getClassificacao() !== Classificacao.LIVRE && quantidadeMaxima !== null && quantidade > quantidadeMaxima) {
+            if(exigeAvaliacao && quantidadeMaxima !== null && quantidade > quantidadeMaxima) {
                 return new Error("Quantidade acima do limite permitido por receita");
             }
 
             itemExistente.alterarQuantidade(quantidade);
 
-            if(produto.getClassificacao() !== Classificacao.LIVRE) {
-                itemExistente.recusar();
+            if(exigeAvaliacao) {
+                itemExistente.registrarAvaliacao(false);
             }
 
-            const resultado = await this.repository.editarItem(itemExistente);
-            if(!resultado) {
+            const foiGravado = diferenca > 0
+                ? await this.repository.adicionarQuantidadeItem(itemExistente, diferenca)
+                : await this.repository.removerQuantidadeItem(itemExistente, -diferenca);
+            if(!foiGravado) {
                 return new Error("Erro ao atualizar quantidade do item");
+            }
+
+            if(exigeAvaliacao && estavaAprovado) {
+                const foiDevolvido = await this.produtoRepository.realizarEntrada(produto, quantidadeAtual);
+                if(!foiDevolvido) {
+                    return new Error("Erro ao devolver quantidade ao estoque");
+                }
+            } else if(!exigeAvaliacao) {
+                const foiAjustado = diferenca > 0
+                    ? await this.produtoRepository.realizarBaixa(produto.getId(), diferenca)
+                    : await this.produtoRepository.realizarEntrada(produto, -diferenca);
+                if(!foiAjustado) {
+                    return new Error("Erro ao ajustar estoque do produto");
+                }
             }
         } catch (error) {
             return new Error("Erro ao atualizar quantidade do item");
@@ -220,9 +301,22 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Venda não permite alteração de itens");
             }
 
-            const resultado = await this.repository.removerItem(id);
+            const produto = itemExistente.getProduto();
+            const estavaAprovado = itemExistente.getAprovadoFarmaceutico();
+            if(estavaAprovado && produto === null) {
+                return new Error("Produto não encontrado");
+            }
+
+            const resultado = await this.repository.removerItem(itemExistente);
             if(!resultado) {
                 return new Error("Erro ao remover item da venda");
+            }
+
+            if(estavaAprovado && produto !== null) {
+                const foiDevolvido = await this.produtoRepository.realizarEntrada(produto, itemExistente.getQuantidade());
+                if(!foiDevolvido) {
+                    return new Error("Erro ao devolver quantidade ao estoque");
+                }
             }
         } catch (error) {
             return new Error("Erro ao remover item da venda");
@@ -253,8 +347,8 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Venda não está em avaliação");
             }
 
-            const produto = await this.produtoRepository.buscarProdutoPorId(itemExistente.getProdutoId());
-            if(!produto || produto === null) {
+            const produto = itemExistente.getProduto();
+            if(produto === null) {
                 return new Error("Produto não encontrado");
             }
 
@@ -263,11 +357,20 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Produto vencido não pode ser liberado");
             }
 
-            itemExistente.aprovar();
+            if(produto.getQuantidadeEstoque() < itemExistente.getQuantidade()) {
+                return new Error("Quantidade em estoque insuficiente");
+            }
+
+            usuarioLogado.aprovarItem(itemExistente);
 
             const resultado = await this.repository.atualizarAprovacao(itemExistente);
             if(!resultado) {
                 return new Error("Erro ao aprovar item da venda");
+            }
+
+            const foiBaixado = await this.produtoRepository.realizarBaixa(produto.getId(), itemExistente.getQuantidade());
+            if(!foiBaixado) {
+                return new Error("Erro ao dar baixa no estoque");
             }
         } catch (error) {
             return new Error("Erro ao aprovar item da venda");
@@ -298,7 +401,9 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 return new Error("Venda não está em avaliação");
             }
 
-            const resultado = await this.repository.removerItem(itemExistente.getId());
+            usuarioLogado.recusarItem(itemExistente);
+
+            const resultado = await this.repository.removerItem(itemExistente);
             if(!resultado) {
                 return new Error("Erro ao recusar item da venda");
             }
@@ -329,19 +434,35 @@ export default class ItemVendaService implements InterfaceItemVendaService {
 
             if(aprovado) {
                 for (const item of itensPendentes) {
-                    item.aprovar();
-                }
+                    const produto = item.getProduto();
+                    if(produto === null) {
+                        return new Error("Produto não encontrado");
+                    }
 
-                const foramAprovados = await this.repository.atualizarAprovacaoEmLote(itensPendentes);
-                if(!foramAprovados) {
-                    return new Error("Erro ao avaliar itens da venda");
+                    if(produto.getQuantidadeEstoque() < item.getQuantidade()) {
+                        return new Error("Quantidade em estoque insuficiente");
+                    }
                 }
-            } else {
-                const idsRecusados = itensPendentes.map((item) => item.getId());
+            }
 
-                const foramRemovidos = await this.repository.removerItensEmLote(idsRecusados);
-                if(!foramRemovidos) {
-                    return new Error("Erro ao avaliar itens da venda");
+            usuarioLogado.avaliarVenda(itensPendentes, aprovado);
+
+            for (const item of itensPendentes) {
+                if(aprovado) {
+                    const foiGravado = await this.repository.atualizarAprovacao(item);
+                    if(!foiGravado) {
+                        return new Error("Erro ao avaliar itens da venda");
+                    }
+
+                    const foiBaixado = await this.produtoRepository.realizarBaixa(item.getProdutoId(), item.getQuantidade());
+                    if(!foiBaixado) {
+                        return new Error("Erro ao dar baixa no estoque");
+                    }
+                } else {
+                    const foiGravado = await this.repository.removerItem(item);
+                    if(!foiGravado) {
+                        return new Error("Erro ao avaliar itens da venda");
+                    }
                 }
             }
         } catch (error) {
@@ -359,12 +480,13 @@ export default class ItemVendaService implements InterfaceItemVendaService {
             let total = 0;
 
             for (const item of itens) {
-                const produto = await this.produtoRepository.buscarProdutoPorId(item.getProdutoId());
-                if(!produto || produto === null) {
+                if(item.getProduto() === null) {
                     return new Error("Produto não encontrado");
                 }
 
-                total = total + item.calcularValorItem(produto.getPreco());
+                item.calcularValorItem();
+
+                total = total + item.getPreco();
             }
             return Math.round(total * 100) / 100;
         } catch (error) {
