@@ -19,10 +19,11 @@ export class PrescricaoRepository implements InterfacePrescricaoRepository {
     this.prisma = client;
   }
   
-
+  /* ! ========== Cadastrar Prescrição ========== ! */
   public async cadastrarPrescricao(prescricao: Prescricao): Promise<boolean> {
     const resultado = await this.prisma.prescricao.create({
       data: {
+        id: prescricao.getId(),
         numeroPrescricao: prescricao.getNumeroPrescricao(),
         nomeMedico: prescricao.getNomeMedico(),
         numeroCrm: prescricao.getNumeroCrm(),
@@ -41,6 +42,7 @@ export class PrescricaoRepository implements InterfacePrescricaoRepository {
   }
 
 
+  /* ! ========== Listar Prescrições ========== ! */
   public async listarPrescricoes(busca: string): Promise<Prescricao[] | null> {
     const resultado = await this.prisma.prescricao.findMany({
       where: {
@@ -56,95 +58,105 @@ export class PrescricaoRepository implements InterfacePrescricaoRepository {
     });
 
     if (resultado.length > 0) {
-      return resultado.map((prescricao) => new Prescricao(
-        prescricao.id,
-        prescricao.numeroPrescricao,
-        prescricao.nomeMedico,
-        prescricao.numeroCrm,
-        prescricao.ufCrm,
-        prescricao.nomePaciente,
-        prescricao.retencao,
-        prescricao.dataEmissao,
-        prescricao.dataValidade,
-        prescricao.anexo || '',
-        prescricao.retida,
-        prescricao.vendaId,
-      ));
-    }
-    return null;
-  }
-
-
-  public async listarPrescricoesPorVendaId(vendaId: number): Promise<Prescricao[] | null> {
-    const resultado = await this.prisma.prescricao.findMany({ where: { vendaId } });
-
-    if (resultado.length > 0) {
-      return resultado.map((prescricao) => new Prescricao(
-        prescricao.id,
-        prescricao.numeroPrescricao,
-        prescricao.nomeMedico,
-        prescricao.numeroCrm,
-        prescricao.ufCrm,
-        prescricao.nomePaciente,
-        prescricao.retencao,
-        prescricao.dataEmissao,
-        prescricao.dataValidade,
-        prescricao.anexo || '',
-        prescricao.retida,
-        prescricao.vendaId,
-      ));
-    }
-
-    return null;
-  }
-
-
-  public async buscarPrescricaoPorId(id: number): Promise<Prescricao | null> {
-    const resultado = await this.prisma.prescricao.findUnique({ where: { id } });
-
-    if (resultado) {
-      return new Prescricao(
-        resultado.id,
-        resultado.numeroPrescricao,
-        resultado.nomeMedico,
-        resultado.numeroCrm,
-        resultado.ufCrm,
-        resultado.nomePaciente,
-        resultado.retencao,
-        resultado.dataEmissao,
-        resultado.dataValidade,
-        resultado.anexo || '',
-        resultado.retida,
-        resultado.vendaId,  
+      return resultado.map((prescricao) => 
+        Prescricao.rebuildPrescricao(
+          prescricao.id, 
+          prescricao.numeroPrescricao, 
+          prescricao.nomeMedico, 
+          prescricao.numeroCrm, 
+          prescricao.ufCrm, 
+          prescricao.nomePaciente, 
+          prescricao.retencao, 
+          prescricao.dataEmissao, 
+          prescricao.dataValidade, 
+          prescricao.anexo || '', 
+          prescricao.retida, 
+          prescricao.vendaId
+        )
       );
     }
     return null;
   }
 
 
-  public async buscarPrescricaoPorNumeroPrescricao(numeroPrescricao: string): Promise<Prescricao[] | null> {
-    const resultado = await this.prisma.prescricao.findMany({ where: { numeroPrescricao } });
+  /* ! ========== Listar Prescrições por Venda ID ========== ! */
+  public async listarPrescricoesPorVendaId(vendaId: number): Promise<Prescricao[] | null> {
+    const resultado = await this.prisma.prescricao.findMany({ where: { vendaId } });
 
     if (resultado.length > 0) {
-      return resultado.map((prescricao) => new Prescricao(
-        prescricao.id,
-        prescricao.numeroPrescricao,
-        prescricao.nomeMedico,
-        prescricao.numeroCrm,
-        prescricao.ufCrm,
-        prescricao.nomePaciente,
-        prescricao.retencao,
-        prescricao.dataEmissao,
-        prescricao.dataValidade,
-        prescricao.anexo || '',
-        prescricao.retida,
-        prescricao.vendaId,
-      ));
+      return resultado.map((prescricao) => 
+        Prescricao.rebuildPrescricao(
+          prescricao.id, 
+          prescricao.numeroPrescricao, 
+          prescricao.nomeMedico, 
+          prescricao.numeroCrm, 
+          prescricao.ufCrm, 
+          prescricao.nomePaciente, 
+          prescricao.retencao, 
+          prescricao.dataEmissao, 
+          prescricao.dataValidade, 
+          prescricao.anexo || '', 
+          prescricao.retida, 
+          prescricao.vendaId
+        )
+      );
+    }
+
+    return null;
+  }
+
+
+  /* ! ========== Buscar Prescrição por ID ========== ! */
+  public async buscarPrescricaoPorId(id: number): Promise<Prescricao | null> {
+    const prescricaoResultado = await this.prisma.prescricao.findUnique({ where: { id } });
+
+    if (prescricaoResultado) {
+      return Prescricao.rebuildPrescricao(
+        prescricaoResultado.id, 
+        prescricaoResultado.numeroPrescricao, 
+        prescricaoResultado.nomeMedico, 
+        prescricaoResultado.numeroCrm, 
+        prescricaoResultado.ufCrm, 
+        prescricaoResultado.nomePaciente, 
+        prescricaoResultado.retencao, 
+        prescricaoResultado.dataEmissao, 
+        prescricaoResultado.dataValidade, 
+        prescricaoResultado.anexo || '', 
+        prescricaoResultado.retida, 
+        prescricaoResultado.vendaId
+      );
     }
     return null;
   }
 
 
+  /* ! ========== Buscar Prescrição por Número de Prescrição ========== ! */
+  public async buscarPrescricaoPorNumeroPrescricao(numeroPrescricao: string): Promise<Prescricao[] | null> {
+    const resultado = await this.prisma.prescricao.findMany({ where: { numeroPrescricao } });
+
+    if (resultado.length > 0) {
+      return resultado.map((prescricao) => 
+        Prescricao.rebuildPrescricao(
+          prescricao.id, 
+          prescricao.numeroPrescricao, 
+          prescricao.nomeMedico, 
+          prescricao.numeroCrm, 
+          prescricao.ufCrm, 
+          prescricao.nomePaciente, 
+          prescricao.retencao, 
+          prescricao.dataEmissao, 
+          prescricao.dataValidade, 
+          prescricao.anexo || '', 
+          prescricao.retida, 
+          prescricao.vendaId
+        )
+      );
+    }
+    return null;
+  }
+
+
+  /* ! ========== Editar Prescrição ========== ! */
   public async editarPrescricao(prescricao: Prescricao): Promise<void> {
     await this.prisma.prescricao.update({
       where: { id: prescricao.getId() },
@@ -165,6 +177,7 @@ export class PrescricaoRepository implements InterfacePrescricaoRepository {
   }
 
 
+  /* ! ========== Deletar Prescrição ========== ! */
   public async deletarPrescricao(id: number): Promise<void> {
     await this.prisma.prescricao.delete({ where: { id } });
   }

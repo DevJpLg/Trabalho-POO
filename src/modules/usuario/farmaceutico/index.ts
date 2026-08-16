@@ -11,34 +11,29 @@ export default class Farmaceutico extends Usuario {
         this.numeroCRM = numeroCRM;
     }
 
-    public aprovarItem(item: ItemVenda): void {
-        if(item.getAprovadoFarmaceutico()) {
-            throw new Error("Item já aprovado");
-        }
-        item.registrarAvaliacao(true);
-    }
+    // public aprovarItem(item: ItemVenda): void {
+    //     if(item.getAprovadoFarmaceutico()) {
+    //         throw new Error("Item já aprovado");
+    //     }
+    //     item.registrarAvaliacao(true);
+    // }
 
-    public recusarItem(item: ItemVenda): void {
-        if(item.getAprovadoFarmaceutico()) {
-            throw new Error("Item já aprovado não pode ser recusado");
-        }
-        item.registrarAvaliacao(false);
-    }
+    // public recusarItem(item: ItemVenda): void {
+    //     if(item.getAprovadoFarmaceutico()) {
+    //         throw new Error("Item já aprovado não pode ser recusado");
+    //     }
+    //     item.registrarAvaliacao(false);
+    // }
 
-    public avaliarVenda(itens: ItemVenda[], aprovado: boolean): void {
-        for (const item of itens) {
-            if(aprovado) {
-                this.aprovarItem(item);
-            } else {
-                this.recusarItem(item);
-            }
-        }
-    }
-
-    // Medicamento de venda livre não passa pelo farmacêutico.
-    public static exigeAvaliacao(classificacao: Classificacao): boolean {
-        return classificacao !== Classificacao.LIVRE;
-    }
+    // public avaliarVenda(itens: ItemVenda[], aprovado: boolean): void {
+    //     for (const item of itens) {
+    //         if(aprovado) {
+    //             this.aprovarItem(item);
+    //         } else {
+    //             this.recusarItem(item);
+    //         }
+    //     }
+    // }
 
     public static criarFarmaceutico(nome: string, email: string, senha: string, numeroCRM: string): Farmaceutico {
         if(!Usuario.validarUsuario(nome, email, senha)) {

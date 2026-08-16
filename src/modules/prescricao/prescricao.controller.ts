@@ -18,8 +18,7 @@ export class PrescricaoController implements InterfacePrescricaoController {
 
 
   public async cadastrarPrescricao(req: Request, res: Response): Promise<void> {
-    const prescricao = new Prescricao(
-      0,
+    const resultado = await this.service.cadastrarPrescricao(
       req.body.numeroPrescricao,
       req.body.nomeMedico,
       req.body.numeroCrm,
@@ -31,9 +30,7 @@ export class PrescricaoController implements InterfacePrescricaoController {
       req.body.anexo || '',
       req.body.retida,
       req.body.vendaId,
-    )
-
-    const resultado = await this.service.cadastrarPrescricao(prescricao);
+    );
 
     if(resultado instanceof Error) {
       res.status(400).json({ message: resultado.message });
@@ -95,9 +92,8 @@ export class PrescricaoController implements InterfacePrescricaoController {
 
 
   public async editarPrescricao(req: Request, res: Response): Promise<void> {
-    const id = Number(req.params.id);
-    const prescricao = new Prescricao(
-      Number(id),
+    const resultado = await this.service.editarPrescricao(
+      Number(req.params.id),
       req.body.numeroPrescricao,
       req.body.nomeMedico,
       req.body.numeroCrm,
@@ -109,9 +105,7 @@ export class PrescricaoController implements InterfacePrescricaoController {
       req.body.anexo || '',
       req.body.retida,
       req.body.vendaId,
-    )
-
-    const resultado = await this.service.editarPrescricao(prescricao);
+    );
     if(resultado instanceof Error) {
       res.status(400).json({ message: resultado.message });
       return;

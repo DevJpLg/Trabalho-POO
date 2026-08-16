@@ -1,15 +1,12 @@
-/**
- * Repository do módulo Venda.
- * Camada de acesso a dados para vendas e itens de venda.
- */
-export class VendaRepository {
-  // TODO: injetar PrismaClient
+import Venda from "./index";
 
-  // TODO: implementar métodos de acesso a dados
-  // - create (venda)
-  // - findAll (com filtros)
-  // - findById (com itens)
-  // - updateStatus
-  // - addItem
-  // - removeItem
+export default interface InterfaceVendaRepository {
+  registrarVenda(venda: Venda): Promise<boolean | Error>;
+  listarVendas(busca: String): Promise<Venda[] | Error>;
+  buscarVendaPorId(id: Number): Promise<Venda | Error>;
+  buscarVendasporAtendente(idAtendente: Number): Promise<Venda[] | Error>;
+  buscarVendasporFarmaceutico(idFarmaceutico: Number): Promise<Venda[] | Error>;
+  buscarVendasporCaixa(idCaixa: Number): Promise<Venda[] | Error>;
+  editarVenda(venda: Venda): Promise<boolean | Error>;
+  deletarVenda(id: Number): Promise<boolean | Error>;
 }

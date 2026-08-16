@@ -1,0 +1,44 @@
+Ⅰ Ordem de Desenvolvimento
+
+Entidade (Classe central)  
+    ⤷ Repository (Pertinência dos dados)
+        ⤷ Service (Regras de negócio)
+            ⤷ Controllers (Recebe e envia dados para as rotas)
+                ⤷ Routes (Rotas que direcionam GET, POST e PUT)
+
+
+Ⅱ Entidade (index.ts)
+
+❀ Enum de variaveis com tipos pré selecionados (permitindo export);
+❀ Classe principal com atributos privados (se tiverem muitos atributos podemos fazer );
+❀ Constructor fazendo get com todos os atributos (pode construir valor caso necessário. Ex: ItemVenda.getPrecoUnitario);
+❀ Gets de todos os atributos;
+❀ Função de validação de criação (se os dados NOT NULL estão presentes);
+❀ Função criadora da classe (para nunca precisar fazer new Class fora da classe);
+❀ Função de rebuild da classe (sempre que precisar da classe, sem criar um objeto novo);
+
+
+Ⅲ Repository (classe.repository.ts)
+
+❀ Realiza todas as funções de persistência de dados no banco;
+❀ Se for fazer cadastro, usar classe.criarClasse(dados);
+❀ Se for fazer busca/listagem, usar classe.rebuildClasse(id);
+
+Usar sempre:
+♟ import InterfaceClasse, { TypeEnum } from "./index";
+♟ import { prisma } from "../../shared/database";
+♟ import type { PrismaClient } from "../../generated/prisma/client";
+
+
+Ⅳ Service (classe.service.ts)
+
+❀ Geralmente, existe 1 função da service para cada controller + funções auxiliares;
+❀ Sempre vai ser composta por condicionais que caem em erro caso não sejam satisfeitas;
+
+
+Ⅴ Controllers (classe.controller.ts)
+
+❀ Criar sempre como classe;
+❀ Quando a função puder ser realizada apenas por um tipo de usuário, observe req.usuario que trás o usuário logado;
+⤷  Nesse caso, o usuario logado é passado para o service como usuarioLogado;
+❀ Não trata regra de negócio, apenas recebe e envia dados para o service;
