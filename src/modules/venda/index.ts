@@ -61,7 +61,7 @@ export default class Venda {
 
     public calcularValorTotal(): void {
         this.valorTotal = this.itens.reduce(
-            (total, itemVenda) => total + itemVenda.calcularValorItem(), 0
+            (total, itemVenda) => total + itemVenda.getPrecoSubtotal(), 0
         )
     }
 }

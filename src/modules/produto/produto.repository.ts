@@ -2,7 +2,7 @@ import Produto, { Classificacao } from "./index";
 import { prisma } from "../../shared/database";
 import type { PrismaClient, Produto as ProdutoModel } from "../../generated/prisma/client";
 
-export interface InterfaceProdutoRepository {
+export default interface InterfaceProdutoRepository {
     cadastrarProduto(produto: Produto): Promise<boolean>;
     listarProdutos(busca: string): Promise<Produto[] | null>;
     buscarProduto(busca: string): Promise<Produto[] | null>;
@@ -20,7 +20,7 @@ export interface InterfaceProdutoRepository {
     bloquearProduto(produto: Produto): Promise<boolean>;
 }
 
-export default class ProdutoRepository implements InterfaceProdutoRepository {
+export class ProdutoRepository implements InterfaceProdutoRepository {
     private prisma: PrismaClient;
 
     constructor(client: PrismaClient = prisma) {

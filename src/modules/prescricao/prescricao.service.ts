@@ -1,5 +1,5 @@
 import Prescricao from "./index";
-import InterfaceCrmService from "./crm";
+import InterfaceCrmService from "./crm/crm.service";
 import InterfaceVendaService from "../venda";
 import InterfacePrescricaoRepository from "./prescricao.repository";
 

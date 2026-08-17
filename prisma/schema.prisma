@@ -118,6 +118,8 @@ model Venda {
 model ItemVenda {
   id                   Int     @id @default(autoincrement())
   quantidade           Int
+  precoUnitario        Decimal @db.Decimal(10, 2)
+  exigeAvaliacao       Boolean @default(false)
   aprovadoFarmaceutico Boolean @default(false)
 
   vendaId   Int

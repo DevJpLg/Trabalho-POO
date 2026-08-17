@@ -1,8 +1,8 @@
-import { InterfaceProdutoRepository } from "./produto.repository";
-import Produto, { DadosProduto } from "./index";
+import InterfaceProdutoRepository from "./produto.repository";
+import Produto, { Classificacao, DadosProduto } from "./index";
 import Usuario, { Perfil } from "../usuario";
 
-export interface InterfaceProdutoService {
+export default interface InterfaceProdutoService {
     cadastrarProduto(usuarioLogado: Usuario, dados: DadosProduto): Promise<boolean | Error>;
     listarProdutos(usuarioLogado: Usuario, busca: string): Promise<Produto[] | Error>;
     buscarProduto(usuarioLogado: Usuario, busca: string): Promise<Produto[] | Error>;
@@ -13,9 +13,12 @@ export interface InterfaceProdutoService {
     alterarValidade(usuarioLogado: Usuario, id: number, novaData: Date): Promise<void | Error>;
     monitorarValidades(usuarioLogado: Usuario, dias?: number): Promise<Produto[] | Error>;
     bloquearProduto(usuarioLogado: Usuario, id: number): Promise<void | Error>;
+    verificarCondicoesVendaProduto(id: number, quantidadeDesejada: number): Promise<boolean>;
+    buscarPrecoUnitarioProduto(id: number): Promise<number | Error>;
+    verificarExigeAvaliacaoProduto(id: number): Promise<boolean>;
 }
 
-export default class ProdutoService implements InterfaceProdutoService {
+export class ProdutoService implements InterfaceProdutoService {
     private repository: InterfaceProdutoRepository;
 
     constructor(repository: InterfaceProdutoRepository) {
@@ -279,6 +282,60 @@ export default class ProdutoService implements InterfaceProdutoService {
             }
         } catch (error) {
             return new Error("Erro ao alterar status do produto");
+        }
+    }
+
+
+    /*! ========== Verifica se o produto está em condições de ser vendido ========== */
+    public async verificarCondicoesVendaProduto(id: number, quantidadeDesejada: number): Promise<boolean> {
+        try {
+            const produto = await this.repository.buscarProdutoPorId(id);
+            if(!produto || produto === null) {
+                return false;
+            }
+
+            if(!produto.getIsActive()) {
+                return false;
+            }
+
+            const validade = produto.getValidade();
+            if(validade === null || validade < new Date()) {
+                return false;
+            }
+
+            const produtoQuantidadeMaxima = produto.getQuantidadeMaxima();
+            if(produtoQuantidadeMaxima === null || produtoQuantidadeMaxima <= 0 || quantidadeDesejada > produtoQuantidadeMaxima) {
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+
+    public async buscarPrecoUnitarioProduto(id: number): Promise<number | Error> {
+        try {
+            const produto = await this.repository.buscarProdutoPorId(id);
+            if(!produto || produto === null) {
+                return new Error("Produto não encontrado");
+            }
+            return produto.getPreco();
+        } catch (error) {
+            return new Error("Erro ao buscar preço unitário do produto");
+        }
+    }
+
+    public async verificarExigeAvaliacaoProduto(id: number): Promise<boolean> {
+        try {
+            const produto = await this.repository.buscarProdutoPorId(id);
+            if(!produto || produto === null) {
+                return false;
+            }
+            return produto.getClassificacao() === Classificacao.CONTROLADO || produto.getClassificacao() === Classificacao.PRESCRITO;
+        } catch (error) {
+            return false;
         }
     }
 }

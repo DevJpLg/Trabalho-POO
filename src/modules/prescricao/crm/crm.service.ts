@@ -1,6 +1,8 @@
-import InterfaceCrmService from "./index";
+export default interface InterfaceCrmService {
+    validarCrm(numeroCrm: string, ufCrm: string): Promise<boolean | Error>;
+}
 
-export default class CrmService implements InterfaceCrmService {
+export class CrmService implements InterfaceCrmService {
 
     public async validarCrm(numeroCrm: string, ufCrm: string): Promise<boolean | Error> {
         try {

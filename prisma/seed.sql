@@ -114,14 +114,18 @@ CREATE TABLE vendas (
 
 -- -----------------------------------------------------------------------------
 -- itens_venda (model ItemVenda)
+-- precoUnitario congela o preço do produto no momento da venda.
+-- exigeAvaliacao congela se o item precisa de avaliação do farmacêutico.
 -- aprovadoFarmaceutico indica se o farmacêutico validou o item.
 -- -----------------------------------------------------------------------------
 CREATE TABLE itens_venda (
-  id                   INT     NOT NULL AUTO_INCREMENT,
-  quantidade           INT     NOT NULL,
-  aprovadoFarmaceutico BOOLEAN NOT NULL DEFAULT FALSE,
-  vendaId              INT     NOT NULL,
-  produtoId            INT     NOT NULL,
+  id                   INT           NOT NULL AUTO_INCREMENT,
+  quantidade           INT           NOT NULL,
+  precoUnitario        DECIMAL(10,2) NOT NULL,
+  exigeAvaliacao       BOOLEAN       NOT NULL DEFAULT FALSE,
+  aprovadoFarmaceutico BOOLEAN       NOT NULL DEFAULT FALSE,
+  vendaId              INT           NOT NULL,
+  produtoId            INT           NOT NULL,
 
   PRIMARY KEY (id),
   CONSTRAINT fk_itens_venda_venda   FOREIGN KEY (vendaId)   REFERENCES vendas(id),
@@ -298,29 +302,29 @@ INSERT INTO vendas (id, dataHora, status, atendenteId, caixaId, farmaceuticoId) 
 --   - Venda EM_AVALIACAO (2): itens controlados com aprovadoFarmaceutico=FALSE.
 --   - Produto vencido NÃO aparece em nenhuma venda finalizada.
 -- -----------------------------------------------------------------------------
-INSERT INTO itens_venda (id, quantidade, aprovadoFarmaceutico, vendaId, produtoId) VALUES
+INSERT INTO itens_venda (id, quantidade, precoUnitario, exigeAvaliacao, aprovadoFarmaceutico, vendaId, produtoId) VALUES
 
 -- Venda 1 (EM_ANDAMENTO): apenas itens livres
-(1,  2, FALSE, 1, 1),   -- 2x Dipirona (livre, não precisa aprovação)
-(2,  1, FALSE, 1, 2),   -- 1x Paracetamol (livre)
+(1,  2, 8.90,  FALSE, FALSE, 1, 1),   -- 2x Dipirona (livre, não precisa aprovação)
+(2,  1, 6.50,  FALSE, FALSE, 1, 2),   -- 1x Paracetamol (livre)
 
 -- Venda 2 (EM_AVALIACAO): tem prescrito aguardando aprovação
-(3,  1, FALSE, 2, 3),   -- 1x Ibuprofeno (livre)
-(4,  1, FALSE, 2, 6),   -- 1x Amoxicilina (prescrito, PENDENTE aprovação)
-(5,  1, FALSE, 2, 8),   -- 1x Clonazepam (controlado, PENDENTE aprovação)
+(3,  1, 12.90, FALSE, FALSE, 2, 3),   -- 1x Ibuprofeno (livre)
+(4,  1, 22.50, TRUE,  FALSE, 2, 6),   -- 1x Amoxicilina (prescrito, PENDENTE aprovação)
+(5,  1, 18.70, TRUE,  FALSE, 2, 8),   -- 1x Clonazepam (controlado, PENDENTE aprovação)
 
 -- Venda 3 (AGUARDANDO_PAGAMENTO): farmacêutico já aprovou tudo
-(6,  2, FALSE, 3, 1),   -- 2x Dipirona (livre, não precisa)
-(7,  1, TRUE,  3, 7),   -- 1x Azitromicina (prescrito, APROVADO)
+(6,  2, 8.90,  FALSE, FALSE, 3, 1),   -- 2x Dipirona (livre, não precisa)
+(7,  1, 35.00, TRUE,  TRUE,  3, 7),   -- 1x Azitromicina (prescrito, APROVADO)
 
 -- Venda 4 (FINALIZADA): todos aprovados, pagamento confirmado
-(8,  3, FALSE, 4, 2),   -- 3x Paracetamol (livre)
-(9,  1, TRUE,  4, 6),   -- 1x Amoxicilina (prescrito, APROVADO)
-(10, 1, TRUE,  4, 9),   -- 1x Ritalina (controlado, APROVADO)
+(8,  3, 6.50,  FALSE, FALSE, 4, 2),   -- 3x Paracetamol (livre)
+(9,  1, 22.50, TRUE,  TRUE,  4, 6),   -- 1x Amoxicilina (prescrito, APROVADO)
+(10, 1, 42.00, TRUE,  TRUE,  4, 9),   -- 1x Ritalina (controlado, APROVADO)
 
 -- Venda 5 (CANCELADA): itens ficaram pendentes
-(11, 1, FALSE, 5, 1),   -- 1x Dipirona (livre)
-(12, 1, FALSE, 5, 8);   -- 1x Clonazepam (controlado, nunca aprovado — venda cancelada)
+(11, 1, 8.90,  FALSE, FALSE, 5, 1),   -- 1x Dipirona (livre)
+(12, 1, 18.70, TRUE,  FALSE, 5, 8);   -- 1x Clonazepam (controlado, nunca aprovado — venda cancelada)
 
 -- -----------------------------------------------------------------------------
 -- 3.5 Prescrições

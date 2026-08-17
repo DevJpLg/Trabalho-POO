@@ -1,99 +1,85 @@
 import { randomInt } from "crypto";
 import Produto from "../produto";
 
-export type DadosItemVenda = {
-    quantidade: number;
-    vendaId: number;
-    produtoId: number;
-    aprovadoFarmaceutico?: boolean;
-    preco?: number;
-    produto?: Produto | null;
-};
+
 export default class ItemVenda {
     private id: number;
     private quantidade: number;
-    private preco: number;
+    private precoUnitario: number;
+    private precoSubtotal: number;
+    private exigeAvaliacao: boolean;
     private aprovadoFarmaceutico: boolean;
-    private vendaId: number;
     private produtoId: number;
-    private produto: Produto | null;
-
-    constructor(id: number, dados: DadosItemVenda) {
+    private vendaId: number;
+    
+    constructor(id: number, quantidade: number, precoUnitario: number, precoSubtotal: number, aprovadoFarmaceutico: boolean, vendaId: number, produtoId: number, exigeAvaliacao: boolean) {
         this.id = id;
-        this.quantidade = dados.quantidade;
-        this.preco = dados.preco ?? 0;
-        this.aprovadoFarmaceutico = dados.aprovadoFarmaceutico ?? false;
-        this.vendaId = dados.vendaId;
-        this.produtoId = dados.produtoId;
-        this.produto = dados.produto ?? null;
+        this.quantidade = quantidade;
+        this.precoUnitario = precoUnitario;
+        this.precoSubtotal = precoSubtotal;
+        this.exigeAvaliacao = exigeAvaliacao;
+        this.aprovadoFarmaceutico = aprovadoFarmaceutico;
+        this.vendaId = vendaId;
+        this.produtoId = produtoId;
     }
 
     public getId(): number { return this.id; }
     public getQuantidade(): number { return this.quantidade; }
-    public getPreco(): number { return this.preco; }
+    public getPrecoUnitario(): number { return this.precoUnitario; }
+    public getPrecoSubtotal(): number { return this.precoSubtotal; }
+    public getExigeAvaliacao(): boolean { return this.exigeAvaliacao; }
     public getAprovadoFarmaceutico(): boolean { return this.aprovadoFarmaceutico; }
     public getVendaId(): number { return this.vendaId; }
     public getProdutoId(): number { return this.produtoId; }
-    public getProduto(): Produto | null { return this.produto; }
 
+
+    // Funciona para Aprovar ou Reprovar (Mesma regra de negócio)
     public registrarAvaliacao(aprovado: boolean): void {
         this.aprovadoFarmaceutico = aprovado;
     }
 
+
+    // Funciona para aumentar ou diminuir (Mesma regra de negócio)
     public alterarQuantidade(quantidade: number): void {
-        if(!Number.isInteger(quantidade) || quantidade <= 0) {
+        this.quantidade = quantidade;
+        this.precoSubtotal = ItemVenda.calcularSubtotal(this.precoUnitario, quantidade);
+    }
+
+
+    //Em observação: Preciso saber se usa o precoUnitario ou o Produto
+    public static calcularSubtotal(precoUnitario: number, quantidade: number): number {
+        return Math.round(precoUnitario * quantidade * 100) / 100;
+    }
+
+
+    public static criarItemVenda(quantidade: number, precoUnitario: number, exigeAvaliacao: boolean, vendaId: number, produtoId: number): ItemVenda {
+        if(quantidade === null || quantidade === undefined) {
             throw new Error("Quantidade inválida");
         }
-        this.quantidade = quantidade;
-    }
-
-    public calcularValorItem(): void {
-        if(this.produto === null) {
-            throw new Error("Produto do item não carregado");
-        }
-        this.preco = Math.round(this.produto.getPreco() * this.quantidade * 100) / 100;
-    }
-
-    public static criarItemVenda(dados: DadosItemVenda): ItemVenda {
-        if(!ItemVenda.validarItemVenda(dados)) {
-            throw new Error("Item de venda inválido");
+        
+        if(precoUnitario === null || precoUnitario === undefined) {
+            throw new Error("Preço unitário inválido");
         }
 
+        if(vendaId === null || vendaId === undefined) {
+            throw new Error("Venda inválida");
+        }
+
+        if(produtoId === null || produtoId === undefined) {
+            throw new Error("Produto inválido");
+        }
+
+        const subtotal = ItemVenda.calcularSubtotal(precoUnitario, quantidade);
+        
         const id = randomInt(1, 1000000);
-
-        const itemVenda = new ItemVenda(id, dados);
-
-        return itemVenda;
+        
+        return new ItemVenda(id, quantidade, precoUnitario, subtotal, false, vendaId, produtoId, exigeAvaliacao);
     }
 
-    public static validarItemVenda(dados: DadosItemVenda): boolean {
-        if(!Number.isInteger(dados.quantidade) || dados.quantidade <= 0) {
-            return false;
-        }
 
-        if(!Number.isInteger(dados.produtoId) || dados.produtoId <= 0) {
-            return false;
-        }
-
-        if(dados.produto) {
-            if(dados.produto.getId() !== dados.produtoId) {
-                return false;
-            }
-
-            if(!dados.produto.getIsActive()) {
-                return false;
-            }
-
-            const validade = dados.produto.getValidade();
-            if(validade !== null && validade < new Date()) {
-                return false;
-            }
-
-            if(dados.produto.getQuantidadeEstoque() < dados.quantidade) {
-                return false;
-            }
-        }
-
-        return true;
+    public static rebuildItemVenda(id: number, quantidade: number, precoUnitario: number, exigeAvaliacao: boolean, aprovadoFarmaceutico: boolean, vendaId: number, produtoId: number): ItemVenda {
+        const precoSubtotal = ItemVenda.calcularSubtotal(precoUnitario, quantidade);
+        return new ItemVenda(id, quantidade, precoUnitario, precoSubtotal, aprovadoFarmaceutico, vendaId, produtoId, exigeAvaliacao);
     }
+
 }

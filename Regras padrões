@@ -16,6 +16,7 @@ Entidade (Classe central)
 ❀ Função de validação de criação (se os dados NOT NULL estão presentes);
 ❀ Função criadora da classe (para nunca precisar fazer new Class fora da classe);
 ❀ Função de rebuild da classe (sempre que precisar da classe, sem criar um objeto novo);
+❀ ID é criado com crypto.randomInt(1, 1000000) dentro da criarClasse;
 
 
 Ⅲ Repository (classe.repository.ts)
