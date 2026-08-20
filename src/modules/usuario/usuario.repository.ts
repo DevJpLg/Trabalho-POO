@@ -6,6 +6,7 @@ import type { PrismaClient } from "../../generated/prisma/client";
 export default interface InterfaceUsuarioRepository {
     cadastrarUsuario(usuario: Usuario): Promise<boolean>;
     listarUsuarios(busca: string): Promise<Usuario[] | null>;
+    buscarUsuarioPorEmail(email: string): Promise<Usuario | null>;
     buscarUsuarioPorId(id: number): Promise<Usuario | null>;
     editarUsuario(usuario: Usuario): Promise<boolean>;
     deletarUsuario(id: number): Promise<boolean>;
@@ -93,14 +94,25 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
 
 
     public async editarUsuario(usuario: Usuario): Promise<boolean> {
+        const senha = usuario.getSenha();
+        const data: {
+            nome: string;
+            email: string;
+            perfil: Perfil;
+            senha?: string;
+        } = {
+            nome: usuario.getNome(),
+            email: usuario.getEmail(),
+            perfil: usuario.getPerfil(),
+        };
+
+        if (senha && senha.trim() !== "") {
+            data.senha = senha;
+        }
+
         const resultado = await this.prisma.usuario.update({
             where: { id: usuario.getId() },
-            data: {
-                nome: usuario.getNome(),
-                email: usuario.getEmail(),
-                senha: usuario.getSenha(),
-                perfil: usuario.getPerfil(),
-            },
+            data,
         });
         return resultado ? true : false;
     }

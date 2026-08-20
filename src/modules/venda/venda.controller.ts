@@ -1,11 +1,20 @@
 import { Request, Response } from "express";
+import { VendaService } from "./venda.service";
+import Venda, { StatusVenda } from "./index";
 
-/**
- * Controller do módulo Venda.
- * Responsável por operações de vendas e seus itens.
- */
 export class VendaController {
-  // TODO: injetar VendaService
+  constructor(private readonly service: VendaService) {}
+
+  private serializarVenda(venda: Venda) {
+    return {
+      id: venda.getId(),
+      dataHora: venda.getDataHora(),
+      status: venda.getStatus(),
+      idAtendente: venda.getIdAtendente(),
+      idFarmaceutico: venda.getIdFarmaceutico(),
+      idCaixa: venda.getIdCaixa(),
+    };
+  }
 
   async iniciarVenda(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
@@ -27,8 +36,21 @@ export class VendaController {
     res.status(501).json({ message: "Não implementado." });
   }
 
-  async listar(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
+  async listar(req: Request, res: Response): Promise<void> {
+    const resultado = await this.service.listarVendas(String(req.query.busca ?? ""));
+
+    if (resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+
+    const status = typeof req.query.status === "string" ? req.query.status : "";
+    const vendas =
+      status && Object.values(StatusVenda).includes(status as StatusVenda)
+        ? resultado.filter((venda) => venda.getStatus() === status)
+        : resultado;
+
+    res.status(200).json(vendas.map((venda) => this.serializarVenda(venda)));
   }
 
   async buscarPorId(_req: Request, res: Response): Promise<void> {

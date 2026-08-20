@@ -12,55 +12,60 @@ const usuarioService = new UsuarioService(usuarioRepository, usuarioFactory);
 const usuarioController = new UsuarioController(usuarioService);
 
 // ========== Módulo Produto ========== //
-import ProdutoRepository from "../../modules/produto/produto.repository";
-import ProdutoService from "../../modules/produto/produto.service";
+import { ProdutoRepository } from "../../modules/produto/produto.repository";
+import { ProdutoService } from "../../modules/produto/produto.service";
 import ProdutoController from "../../modules/produto/produto.controller";
 import ProdutoMapper from "../../modules/produto/produto.mapper";
 
 const produtoMapper = new ProdutoMapper();
-// const produtoFactory = new ProdutoFactory();
 const produtoRepository = new ProdutoRepository(prisma);
 const produtoService = new ProdutoService(produtoRepository);
 const produtoController = new ProdutoController(produtoService, produtoMapper);
 
 // ========== Módulo Venda ========== //
-import VendaRepository from "../../modules/venda/venda.repository";
-import VendaService from "../../modules/venda/venda.service";
-import VendaController from "../../modules/venda/venda.controller";
+import { VendaRepository } from "../../modules/venda/venda.repository";
+import { VendaService } from "../../modules/venda/venda.service";
+import { VendaController } from "../../modules/venda/venda.controller";
 
-// const vendaFactory = new VendaFactory();
 const vendaRepository = new VendaRepository(prisma);
 const vendaService = new VendaService(vendaRepository);
 const vendaController = new VendaController(vendaService);
 
+// ========== Módulo Autorização ========== //
+import { AutorizacaoService } from "../../modules/usuario/autorizacao/autorizacao.service";
+
+const autorizacaoService = new AutorizacaoService();
+
 // ========== Módulo ItemVenda ========== //
-import ItemVendaRepository from "../../modules/itemVenda/itemVenda.repository";
+import { ItemVendaRepository } from "../../modules/itemVenda/itemVenda.repository";
 import ItemVendaService from "../../modules/itemVenda/itemVenda.service";
 import ItemVendaController from "../../modules/itemVenda/itemVenda.controller";
+import { validacaoItemService } from "../../modules/itemVenda/validacaoItem/validacaoItem.service";
 
 const itemVendaRepository = new ItemVendaRepository(prisma);
-const itemVendaService = new ItemVendaService(itemVendaRepository, produtoRepository);
-const itemVendaController = new ItemVendaController(itemVendaService);
+const itemVendaService = new ItemVendaService(itemVendaRepository, produtoService, autorizacaoService);
+const validacaoItem = new validacaoItemService(itemVendaRepository, autorizacaoService);
+const itemVendaController = new ItemVendaController(itemVendaService, validacaoItem);
 
 // ========== Módulo Prescricao ========== //
-import PrescricaoRepository from "../../modules/prescricao/prescricao.repository";
+import { PrescricaoRepository } from "../../modules/prescricao/prescricao.repository";
 import { PerscricaoService } from "../../modules/prescricao/prescricao.service";
-import PrescricaoController from "../../modules/prescricao/prescricao.controller";
-import CrmService from "../../modules/prescricao/crm/crm.service";
+import { PrescricaoController } from "../../modules/prescricao/prescricao.controller";
+import { CrmService } from "../../modules/prescricao/crm/crm.service";
 
 const prescricaoRepository = new PrescricaoRepository(prisma);
 const crmService = new CrmService();
-const prescricaoService = new PerscricaoService(prescricaoRepository, crmService);
+const prescricaoService = new PerscricaoService(prescricaoRepository, crmService, vendaService);
 const prescricaoController = new PrescricaoController(prescricaoService);
 
 // ========== Módulo Notificação ========== //
-import NotificacaoRepository from "../../modules/notificacao/notificacao.repository";
-import NotificacaoService from "../../modules/notificacao/notificacao.service";
-import NotificacaoController from "../../modules/notificacao/notificacao.controller";
+import { NotificacaoRepository } from "../../modules/notificacao/notificacao.repository";
+import { NotificacaoService } from "../../modules/notificacao/notificacao.service";
+import { NotificacaoController } from "../../modules/notificacao/notificacao.controller";
 
-const notificacaoRepository = new NotificacaoRepository(prisma);
-const notificacaoService = new NotificacaoService(notificacaoRepository);
-const notificacaoController = new NotificacaoController(notificacaoService);
+const notificacaoRepository = new NotificacaoRepository();
+const notificacaoService = new NotificacaoService();
+const notificacaoController = new NotificacaoController();
 
 // ========== Módulo Autenticação ========== //
 import AutenticacaoService from "../../modules/usuario/autenticacao/autenticacao.service";

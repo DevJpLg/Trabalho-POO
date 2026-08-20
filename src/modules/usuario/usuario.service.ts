@@ -1,6 +1,9 @@
 import InterfaceUsuarioRepository from "./usuario.repository";
 import InterfaceUsuarioFactory from "./usuario.factory";
 import Usuario, { Perfil } from "./index";
+import bcrypt from "bcryptjs";
+
+const SALT_ROUNDS = 10;
 
 export default interface InterfaceUsuarioService {
     cadastrarUsuario(usuarioLogado: Usuario, nome: string, email: string, senha: string, perfil: Perfil, numeroCRM?: string): Promise<boolean | Error>;
@@ -28,7 +31,8 @@ export default class UsuarioService implements InterfaceUsuarioService {
                 return new Error("Usuario já cadastrado");
             }
 
-            const usuarioCriado = this.factory.criarUsuario(nome, email, senha, perfil, numeroCRM ?? undefined);
+            const senhaCriptografada = await bcrypt.hash(senha, SALT_ROUNDS);
+            const usuarioCriado = this.factory.criarUsuario(nome, email, senhaCriptografada, perfil, numeroCRM ?? undefined);
             if(!usuarioCriado) {
                 return new Error("Erro ao criar usuário");
             }
@@ -71,7 +75,13 @@ export default class UsuarioService implements InterfaceUsuarioService {
                 return new Error("Usuario não encontrado"); 
             }
 
-            const usuarioAtualizado = this.factory.rebuildUsuario(id, nome, email, senha, perfil, numeroCRM ?? undefined);
+            const senhaInformada = typeof senha === "string" ? senha.trim() : "";
+            const senhaCriptografada =
+                senhaInformada !== ""
+                    ? await bcrypt.hash(senhaInformada, SALT_ROUNDS)
+                    : usuarioExistente.getSenha();
+
+            const usuarioAtualizado = this.factory.rebuildUsuario(id, nome, email, senhaCriptografada, perfil, numeroCRM ?? undefined);
             if(!usuarioAtualizado) {
                 return new Error("Erro ao atualizar usuário");
             }

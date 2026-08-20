@@ -1,2 +1,2 @@
 export { errorHandler } from "./errorHandler";
-export { authGuard } from "./authGuard";
+export { default as AuthGuard } from "./authGuard";

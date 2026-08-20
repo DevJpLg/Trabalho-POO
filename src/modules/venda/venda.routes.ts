@@ -1,14 +1,16 @@
 import { Router } from "express";
+import { VendaController } from "./venda.controller";
 
-const vendaRoutes = Router();
+export function criarVendaRoutes(controller: VendaController): Router {
+  const vendaRoutes = Router();
 
-// TODO: instanciar controller e registrar rotas
-// vendaRoutes.post("/", controller.iniciarVenda);
-// vendaRoutes.post("/:id/itens", controller.adicionarItem);
-// vendaRoutes.delete("/:id/itens/:itemId", controller.removerItem);
-// vendaRoutes.patch("/:id/finalizar", controller.finalizarVenda);
-// vendaRoutes.patch("/:id/cancelar", controller.cancelarVenda);
-// vendaRoutes.get("/", controller.listar);
-// vendaRoutes.get("/:id", controller.buscarPorId);
+  vendaRoutes.post("/", (req, res) => controller.iniciarVenda(req, res));
+  vendaRoutes.post("/:id/itens", (req, res) => controller.adicionarItem(req, res));
+  vendaRoutes.delete("/:id/itens/:itemId", (req, res) => controller.removerItem(req, res));
+  vendaRoutes.patch("/:id/finalizar", (req, res) => controller.finalizarVenda(req, res));
+  vendaRoutes.patch("/:id/cancelar", (req, res) => controller.cancelarVenda(req, res));
+  vendaRoutes.get("/", (req, res) => controller.listar(req, res));
+  vendaRoutes.get("/:id", (req, res) => controller.buscarPorId(req, res));
 
-export { vendaRoutes };
+  return vendaRoutes;
+}

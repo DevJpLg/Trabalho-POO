@@ -1,9 +1,22 @@
 import InterfaceUsuarioRepository from "../usuario.repository";
 import Usuario, { Perfil } from "../index";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
+export type UsuarioSessao = {
+    id: number;
+    nome: string;
+    email: string;
+    perfil: Perfil;
+};
+
+export type ResultadoLogin = {
+    token: string;
+    usuario: UsuarioSessao;
+};
 
 export interface InterfaceAutenticacaoService { 
-    login(email: string, senha: string): Promise<string | Error>;
+    login(email: string, senha: string): Promise<ResultadoLogin | Error>;
     verificarToken(token: string): Promise<Usuario | Error>;
 }
 
@@ -14,7 +27,7 @@ export default class AutenticacaoService implements InterfaceAutenticacaoService
         this.repository = repository;
     }
 
-    public async login(email: string, senha: string): Promise<string | Error> {
+    public async login(email: string, senha: string): Promise<ResultadoLogin | Error> {
         try {
             const usuario = await this.repository.buscarUsuarioPorEmail(email);
 
@@ -22,7 +35,8 @@ export default class AutenticacaoService implements InterfaceAutenticacaoService
                 return new Error("Usuário não encontrado");
             }
 
-            if(usuario.getSenha() !== senha) {
+            const senhaValida = await bcrypt.compare(senha, usuario.getSenha());
+            if(!senhaValida) {
                 return new Error("E-mail ou senha incorretos");
             }
 
@@ -32,8 +46,17 @@ export default class AutenticacaoService implements InterfaceAutenticacaoService
                 {expiresIn: "8h"}
             );
 
-            return token;
+            return {
+                token,
+                usuario: {
+                    id: usuario.getId(),
+                    nome: usuario.getNome(),
+                    email: usuario.getEmail(),
+                    perfil: usuario.getPerfil(),
+                },
+            };
         } catch (error) {
+            console.error("Erro ao fazer login:", error);
             return new Error("Erro ao fazer login");
         }
     }

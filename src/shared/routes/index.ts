@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { authGuard } from "../middleware";
 
-import { autenticacaoController } from "../container";
+import { autenticacaoController, authGuard } from "../container";
 import { criarAutenticacaoRoutes } from "../../modules/usuario/autenticacao/autenticacao.routes";
 
 import { usuarioController } from "../container";
