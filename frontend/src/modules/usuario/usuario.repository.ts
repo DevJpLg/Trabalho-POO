@@ -1,8 +1,16 @@
 import type { InterfaceHttpClient } from "../../shared/http/HttpClient";
 import type { MessageResponse, UsuarioDTO, UsuarioInput } from "../../shared/types/api";
 
+/**
+ * Acesso HTTP ao módulo Usuário da API.
+ *
+ * `GET /usuarios` é chamado **sem** o parâmetro `busca` de propósito: o repositório
+ * do backend devolve um objeto solto quando a consulta casa com exatamente um
+ * usuário, e o controller faz `.map` em cima disso (500). Trazer a lista inteira e
+ * filtrar no cliente evita cair nesse caso (ver ERROS_BACKEND.md e `usuario.service`).
+ */
 export interface InterfaceUsuarioRepository {
-  listar(busca?: string): Promise<UsuarioDTO[]>;
+  listar(): Promise<UsuarioDTO[]>;
   cadastrar(dados: UsuarioInput): Promise<MessageResponse>;
   editar(id: number, dados: UsuarioInput): Promise<MessageResponse>;
   deletar(id: number): Promise<void>;
@@ -11,8 +19,8 @@ export interface InterfaceUsuarioRepository {
 export class UsuarioRepository implements InterfaceUsuarioRepository {
   constructor(private readonly http: InterfaceHttpClient) {}
 
-  listar(busca = ""): Promise<UsuarioDTO[]> {
-    return this.http.get<UsuarioDTO[]>("/usuarios", { busca });
+  listar(): Promise<UsuarioDTO[]> {
+    return this.http.get<UsuarioDTO[]>("/usuarios");
   }
 
   cadastrar(dados: UsuarioInput): Promise<MessageResponse> {

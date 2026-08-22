@@ -1,20 +1,35 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../../../shared/auth/AuthContext";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
-import type { PrescricaoDTO, PrescricaoInput } from "../../../shared/types/api";
+import {
+  UFS,
+  statusVendaLabel,
+  type PrescricaoDTO,
+  type PrescricaoInput,
+  type VendaDTO,
+} from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
-import { Button } from "../../../shared/ui/Button";
-import { Input } from "../../../shared/ui/Input";
+import { Button, IconButton } from "../../../shared/ui/Button";
+import { data as formatarData, diasAte, paraInputDate } from "../../../shared/ui/format";
+import { Checkbox, Input } from "../../../shared/ui/Input";
+import { Select } from "../../../shared/ui/Select";
+import { DateInput } from "../../../shared/ui/DateInput";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
+import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
 import { StatCard } from "../../../shared/ui/StatCard";
-import { Table } from "../../../shared/ui/Table";
+import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { pageTitles } from "../../../shared/ui/nav";
-import { IconClipboard, IconPlus } from "../../../shared/ui/icons";
+import { IconAlert, IconFile, IconPencil, IconPlus, IconSearch, IconShield, IconTrash } from "../../../shared/ui/icons";
+import { VendaRepository } from "../../venda/venda.repository";
+import { VendaService } from "../../venda/venda.service";
 import { PrescricaoRepository } from "../prescricao.repository";
 import { PrescricaoService } from "../prescricao.service";
+
+const ufOptions = UFS.map((uf) => ({ value: uf, label: uf }));
+
+function hojeISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const emptyForm: PrescricaoInput = {
   numeroPrescricao: "",
@@ -23,112 +38,118 @@ const emptyForm: PrescricaoInput = {
   ufCrm: "RJ",
   nomePaciente: "",
   retencao: false,
-  dataEmissao: "",
-  dataValidade: "",
+  dataEmissao: hojeISO(),
+  dataValidade: hojeISO(),
   anexo: "",
   retida: false,
-  vendaId: 1,
+  vendaId: 0,
 };
 
-function readField(row: PrescricaoDTO, key: string): unknown {
-  if (key in row && row[key] != null) return row[key];
-  return undefined;
-}
-
-function display(row: PrescricaoDTO, key: string): string {
-  const value = readField(row, key);
-  if (value == null || value === "") return "—";
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return String(value);
-}
-
-function toForm(row: PrescricaoDTO): PrescricaoInput {
-  const dataEmissao = String(readField(row, "dataEmissao") ?? "").slice(0, 10);
-  const dataValidade = String(readField(row, "dataValidade") ?? "").slice(0, 10);
+function prescricaoToForm(prescricao: PrescricaoDTO): PrescricaoInput {
   return {
-    numeroPrescricao: String(readField(row, "numeroPrescricao") ?? ""),
-    nomeMedico: String(readField(row, "nomeMedico") ?? ""),
-    numeroCrm: String(readField(row, "numeroCrm") ?? ""),
-    ufCrm: String(readField(row, "ufCrm") ?? "RJ"),
-    nomePaciente: String(readField(row, "nomePaciente") ?? ""),
-    retencao: Boolean(readField(row, "retencao")),
-    dataEmissao,
-    dataValidade,
-    anexo: String(readField(row, "anexo") ?? ""),
-    retida: Boolean(readField(row, "retida")),
-    vendaId: Number(readField(row, "vendaId") ?? 1),
+    numeroPrescricao: prescricao.numeroPrescricao ?? "",
+    nomeMedico: prescricao.nomeMedico ?? "",
+    numeroCrm: prescricao.numeroCrm ?? "",
+    ufCrm: prescricao.ufCrm ?? "RJ",
+    nomePaciente: prescricao.nomePaciente ?? "",
+    retencao: Boolean(prescricao.retencao),
+    dataEmissao: paraInputDate(prescricao.dataEmissao) || hojeISO(),
+    dataValidade: paraInputDate(prescricao.dataValidade) || hojeISO(),
+    anexo: prescricao.anexo ?? "",
+    retida: Boolean(prescricao.retida),
+    vendaId: Number(prescricao.vendaId ?? 0),
   };
 }
 
 export function PrescricoesPage() {
-  const location = useLocation();
-  usePageTitle(pageTitles[location.pathname] ?? "Prescrições");
+  usePageTitle("Prescrições");
   const { http } = useAuth();
+
   const service = useMemo(() => new PrescricaoService(new PrescricaoRepository(http)), [http]);
+  const vendasApi = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
 
   const [busca, setBusca] = useState("");
-  const [filtroVenda, setFiltroVenda] = useState("");
   const [rows, setRows] = useState<PrescricaoDTO[]>([]);
+  const [vendas, setVendas] = useState<VendaDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<PrescricaoDTO | null>(null);
   const [form, setForm] = useState<PrescricaoInput>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  async function load(nextBusca = busca, vendaId = filtroVenda) {
-    setLoading(true);
-    setError(null);
-    try {
-      if (vendaId.trim()) {
-        setRows(await service.listarPorVenda(Number(vendaId)));
-      } else {
-        setRows(await service.listar(nextBusca));
+  const carregar = useCallback(
+    async (termo: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        setRows(await service.listar(termo));
+      } catch (err) {
+        setError(getErrorMessage(err));
+        setRows([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [service],
+  );
 
   useEffect(() => {
-    void load("", "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void carregar("");
+  }, [carregar]);
+
+  useEffect(() => {
+    let ativo = true;
+    vendasApi
+      .listar()
+      .then((lista) => {
+        if (ativo) setVendas(lista);
+      })
+      .catch(() => {
+        if (ativo) setVendas([]);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [vendasApi]);
 
   function openCreate() {
-    setEditingId(null);
-    setForm(emptyForm);
+    setEditing(null);
+    setForm({ ...emptyForm, vendaId: vendas[0]?.id ?? 0 });
     setModalOpen(true);
   }
 
-  function openEdit(row: PrescricaoDTO) {
-    const id = Number(readField(row, "id"));
-    setEditingId(Number.isFinite(id) ? id : null);
-    setForm(toForm(row));
+  function openEdit(prescricao: PrescricaoDTO) {
+    setEditing(prescricao);
+    setForm(prescricaoToForm(prescricao));
     setModalOpen(true);
   }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (!form.vendaId) {
+      setError("Selecione a venda vinculada à prescrição.");
+      return;
+    }
+    if (form.dataEmissao > form.dataValidade) {
+      setError("A data de emissão não pode ser posterior à validade.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      if (editingId != null) {
-        const result = await service.editar(editingId, form);
-        setSuccess(result.message);
-      } else {
-        const result = await service.cadastrar(form);
-        setSuccess(result.message);
-      }
+      const payload: PrescricaoInput = { ...form, vendaId: Number(form.vendaId) };
+      const resultado = editing
+        ? await service.editar(Number(editing.id), payload)
+        : await service.cadastrar(payload);
+      setSuccess(resultado.message);
       setModalOpen(false);
-      await load();
+      await carregar(busca);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -136,26 +157,37 @@ export function PrescricoesPage() {
     }
   }
 
-  async function onDelete(row: PrescricaoDTO) {
-    const id = Number(readField(row, "id"));
-    if (!Number.isFinite(id)) {
-      setError("Não foi possível identificar o ID da prescrição na resposta da API.");
-      return;
-    }
-    if (!confirm(`Excluir prescrição #${id}?`)) return;
+  async function onDelete(prescricao: PrescricaoDTO) {
+    if (!confirm(`Excluir a prescrição ${prescricao.numeroPrescricao}?`)) return;
+    setError(null);
+    setSuccess(null);
     try {
-      const result = await service.deletar(id);
-      setSuccess(result.message);
-      await load();
+      const resultado = await service.deletar(Number(prescricao.id));
+      setSuccess(resultado?.message ?? "Prescrição removida.");
+      await carregar(busca);
     } catch (err) {
       setError(getErrorMessage(err));
     }
   }
 
+  const vencidas = rows.filter((prescricao) => {
+    const dias = diasAte(prescricao.dataValidade);
+    return dias !== null && dias < 0;
+  }).length;
+
+  const opcoesVenda =
+    vendas.length > 0
+      ? vendas.map((venda) => ({
+          value: String(venda.id ?? ""),
+          label: `Venda #${venda.id}`,
+          detalhe: statusVendaLabel[venda.status],
+        }))
+      : [{ value: "", label: "Nenhuma venda disponível" }];
+
   return (
     <div>
       <PageHeader
-        description="Cadastro e consulta de receitas vinculadas a vendas."
+        description="Receitas apresentadas para medicamentos controlados e prescritos."
         actions={
           <Button type="button" onClick={openCreate}>
             <IconPlus size={16} /> Nova prescrição
@@ -164,58 +196,39 @@ export function PrescricoesPage() {
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total" value={rows.length} icon={<IconClipboard />} tone="green" />
-        <StatCard
-          label="Retidas"
-          value={rows.filter((r) => Boolean(readField(r, "retida"))).length}
-          icon={<IconClipboard />}
-          tone="red"
-        />
+        <StatCard label="Prescrições" value={rows.length} icon={<IconFile />} tone="green" />
         <StatCard
           label="Com retenção"
-          value={rows.filter((r) => Boolean(readField(r, "retencao"))).length}
-          icon={<IconClipboard />}
-          tone="rose"
-        />
-        <StatCard
-          label="Pacientes"
-          value={new Set(rows.map((r) => display(r, "nomePaciente"))).size}
-          icon={<IconClipboard />}
+          value={rows.filter((prescricao) => prescricao.retencao).length}
+          icon={<IconShield />}
           tone="mint"
         />
+        <StatCard
+          label="Já retidas"
+          value={rows.filter((prescricao) => prescricao.retida).length}
+          icon={<IconFile />}
+          tone="rose"
+        />
+        <StatCard label="Vencidas" value={vencidas} icon={<IconAlert />} tone="red" />
       </div>
 
       <form
-        className="mb-4 grid gap-2 sm:grid-cols-[1fr_160px_auto_auto]"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void load(busca, filtroVenda);
+        className="mb-4 flex flex-col gap-2 sm:flex-row"
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void carregar(busca);
         }}
       >
-        <Input
-          placeholder="Busca geral"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
-        <Input
-          placeholder="Filtrar por vendaId"
-          type="number"
-          value={filtroVenda}
-          onChange={(e) => setFiltroVenda(e.target.value)}
-        />
+        <div className="flex-1">
+          <Input
+            placeholder="Buscar por número, paciente, médico ou CRM"
+            icone={<IconSearch size={17} />}
+            value={busca}
+            onChange={(event) => setBusca(event.target.value)}
+          />
+        </div>
         <Button type="submit" variant="secondary">
           Buscar
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            setBusca("");
-            setFiltroVenda("");
-            void load("", "");
-          }}
-        >
-          Limpar
         </Button>
       </form>
 
@@ -235,39 +248,97 @@ export function PrescricoesPage() {
       ) : (
         <Table
           rows={rows}
-          rowKey={(r) => String(readField(r, "id") ?? JSON.stringify(r))}
+          rowKey={(prescricao) => Number(prescricao.id)}
+          empty={
+            <EmptyState
+              icone={<IconFile size={22} />}
+              titulo={busca ? "Nenhuma prescrição para essa busca" : "Nenhuma prescrição cadastrada"}
+              descricao={
+                busca
+                  ? "Revise o termo ou limpe a busca para ver todas as receitas."
+                  : "Registre a receita apresentada quando a venda incluir controlados ou prescritos."
+              }
+              acao={
+                busca ? undefined : (
+                  <Button type="button" onClick={openCreate}>
+                    <IconPlus size={16} /> Nova prescrição
+                  </Button>
+                )
+              }
+            />
+          }
           columns={[
-            { key: "id", header: "ID", render: (r) => display(r, "id") },
-            { key: "numero", header: "Número", render: (r) => display(r, "numeroPrescricao") },
-            { key: "paciente", header: "Paciente", render: (r) => display(r, "nomePaciente") },
-            { key: "medico", header: "Médico", render: (r) => display(r, "nomeMedico") },
             {
-              key: "crm",
-              header: "CRM",
-              render: (r) => `${display(r, "numeroCrm")}/${display(r, "ufCrm")}`,
-            },
-            { key: "venda", header: "Venda", render: (r) => display(r, "vendaId") },
-            {
-              key: "retida",
-              header: "Retida",
-              render: (r) => (
-                <Badge tone={Boolean(readField(r, "retida")) ? "red" : "green"}>
-                  {Boolean(readField(r, "retida")) ? "Sim" : "Não"}
-                </Badge>
+              key: "numero",
+              header: "Prescrição",
+              render: (prescricao) => (
+                <div>
+                  <p className="font-semibold">{prescricao.numeroPrescricao}</p>
+                  <p className="text-xs text-ink-muted">Venda #{prescricao.vendaId}</p>
+                </div>
               ),
+            },
+            { key: "paciente", header: "Paciente", render: (prescricao) => prescricao.nomePaciente },
+            {
+              key: "medico",
+              header: "Médico",
+              render: (prescricao) => (
+                <div>
+                  <p>{prescricao.nomeMedico}</p>
+                  <p className="text-xs text-ink-muted">
+                    CRM {prescricao.numeroCrm}/{prescricao.ufCrm}
+                  </p>
+                </div>
+              ),
+            },
+            {
+              key: "emissao",
+              header: "Emissão",
+              render: (prescricao) => formatarData(prescricao.dataEmissao),
+            },
+            {
+              key: "validade",
+              header: "Validade",
+              render: (prescricao) => {
+                const dias = diasAte(prescricao.dataValidade);
+                const vencida = dias !== null && dias < 0;
+                return (
+                  <Badge tone={vencida ? "red" : "green"}>
+                    {formatarData(prescricao.dataValidade)}
+                  </Badge>
+                );
+              },
+            },
+            {
+              key: "retencao",
+              header: "Retenção",
+              render: (prescricao) =>
+                prescricao.retencao ? (
+                  <Badge tone={prescricao.retida ? "green" : "amber"}>
+                    {prescricao.retida ? "Retida" : "Pendente"}
+                  </Badge>
+                ) : (
+                  <Badge>Não exige</Badge>
+                ),
             },
             {
               key: "acoes",
               header: "Ações",
-              render: (r) => (
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" onClick={() => openEdit(r)}>
-                    Editar
-                  </Button>
-                  <Button type="button" variant="danger" onClick={() => void onDelete(r)}>
-                    Excluir
-                  </Button>
-                </div>
+              fim: true,
+              className: "min-w-24",
+              render: (prescricao) => (
+                <RowActions>
+                  <IconButton label="Editar prescrição" onClick={() => openEdit(prescricao)}>
+                    <IconPencil size={17} />
+                  </IconButton>
+                  <IconButton
+                    label="Excluir prescrição"
+                    tone="danger"
+                    onClick={() => void onDelete(prescricao)}
+                  >
+                    <IconTrash size={17} />
+                  </IconButton>
+                </RowActions>
               ),
             },
           ]}
@@ -276,7 +347,7 @@ export function PrescricoesPage() {
 
       <Modal
         open={modalOpen}
-        title={editingId != null ? "Editar prescrição" : "Nova prescrição"}
+        title={editing ? "Editar prescrição" : "Nova prescrição"}
         onClose={() => setModalOpen(false)}
         footer={
           <>
@@ -294,75 +365,81 @@ export function PrescricoesPage() {
             label="Número da prescrição"
             required
             value={form.numeroPrescricao}
-            onChange={(e) => setForm((f) => ({ ...f, numeroPrescricao: e.target.value }))}
+            onChange={(event) =>
+              setForm((atual) => ({ ...atual, numeroPrescricao: event.target.value }))
+            }
           />
-          <Input
-            label="Venda ID"
-            type="number"
-            required
-            value={form.vendaId}
-            onChange={(e) => setForm((f) => ({ ...f, vendaId: Number(e.target.value) }))}
-          />
-          <Input
-            label="Nome do médico"
-            required
-            value={form.nomeMedico}
-            onChange={(e) => setForm((f) => ({ ...f, nomeMedico: e.target.value }))}
+          <Select
+            label="Venda vinculada"
+            options={opcoesVenda}
+            value={form.vendaId ? String(form.vendaId) : ""}
+            placeholder="Escolha a venda"
+            onChange={(valor) => setForm((atual) => ({ ...atual, vendaId: Number(valor) }))}
           />
           <Input
             label="Nome do paciente"
             required
             value={form.nomePaciente}
-            onChange={(e) => setForm((f) => ({ ...f, nomePaciente: e.target.value }))}
+            onChange={(event) =>
+              setForm((atual) => ({ ...atual, nomePaciente: event.target.value }))
+            }
           />
           <Input
-            label="CRM"
+            label="Nome do médico"
+            required
+            value={form.nomeMedico}
+            onChange={(event) => setForm((atual) => ({ ...atual, nomeMedico: event.target.value }))}
+          />
+          <Input
+            label="Número do CRM"
             required
             value={form.numeroCrm}
-            onChange={(e) => setForm((f) => ({ ...f, numeroCrm: e.target.value }))}
+            onChange={(event) => setForm((atual) => ({ ...atual, numeroCrm: event.target.value }))}
           />
-          <Input
-            label="UF CRM"
-            required
-            maxLength={2}
+          <Select
+            label="UF do CRM"
+            options={ufOptions}
             value={form.ufCrm}
-            onChange={(e) => setForm((f) => ({ ...f, ufCrm: e.target.value.toUpperCase() }))}
+            onChange={(valor) => setForm((atual) => ({ ...atual, ufCrm: valor }))}
           />
-          <Input
-            label="Data emissão"
-            type="date"
+          <DateInput
+            label="Data de emissão"
             required
             value={form.dataEmissao}
-            onChange={(e) => setForm((f) => ({ ...f, dataEmissao: e.target.value }))}
+            onChange={(iso) => setForm((atual) => ({ ...atual, dataEmissao: iso }))}
           />
-          <Input
-            label="Data validade"
-            type="date"
+          <DateInput
+            label="Data de validade"
             required
             value={form.dataValidade}
-            onChange={(e) => setForm((f) => ({ ...f, dataValidade: e.target.value }))}
+            onChange={(iso) => setForm((atual) => ({ ...atual, dataValidade: iso }))}
           />
-          <Input
-            label="Anexo (URL/texto)"
-            value={form.anexo ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, anexo: e.target.value }))}
-          />
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="sm:col-span-2">
+            <Input
+              label="Anexo (link ou identificação do arquivo)"
+              value={form.anexo ?? ""}
+              onChange={(event) => setForm((atual) => ({ ...atual, anexo: event.target.value }))}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-end gap-5 rounded-2xl bg-surface-muted px-4 py-3 sm:col-span-2">
+            <Checkbox
+              label="Exige retenção"
               checked={form.retencao}
-              onChange={(e) => setForm((f) => ({ ...f, retencao: e.target.checked }))}
+              onChange={(event) => setForm((atual) => ({ ...atual, retencao: event.target.checked }))}
             />
-            Retenção
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
+              label="Receita já retida"
               checked={form.retida}
-              onChange={(e) => setForm((f) => ({ ...f, retida: e.target.checked }))}
+              onChange={(event) => setForm((atual) => ({ ...atual, retida: event.target.checked }))}
             />
-            Retida
-          </label>
+          </div>
+
+          <p className="text-xs text-ink-muted sm:col-span-2">
+            O backend valida o CRM em um serviço externo antes de salvar. Se o token
+            <code> CONSULTAR_IO_TOKEN </code> não estiver configurado no <code>.env</code> da API, o
+            cadastro é recusado com “CRM inexistente”.
+          </p>
         </form>
       </Modal>
     </div>

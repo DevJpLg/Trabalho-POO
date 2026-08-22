@@ -6,21 +6,25 @@ type Props = {
 export function BrandLogo({ compact = false, className = "" }: Props) {
   if (compact) {
     return (
-      <img
-        src="/logo.png"
-        alt="Farmácia Bairro Saúde"
-        className={`h-25 w-auto object-contain object-left mb-1 ${className}`}
-      />
+      <div className={`mb-1 inline-block ${className}`}>
+        <img
+          src="/logo.png"
+          alt="Farmácia Bairro Saúde"
+          className="h-24 w-auto object-contain object-left"
+        />
+      </div>
     );
   }
 
   return (
-    <img
-      src="/logo.png"
-      alt="Farmácia Bairro Saúde"
-      width={420}
-      height={190}
-      className={`h-auto w-full max-w-[280px] object-contain object-left ${className}`}
-    />
+    <div className={`inline-block max-w-[280px] ${className}`}>
+      <img
+        src="/logo.png"
+        alt="Farmácia Bairro Saúde"
+        width={420}
+        height={190}
+        className="h-auto w-full object-contain object-left"
+      />
+    </div>
   );
 }

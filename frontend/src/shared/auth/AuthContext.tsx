@@ -1,16 +1,15 @@
-import { createContext, useContext, useMemo, useState, useCallback, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { HttpClient, type InterfaceHttpClient } from "../http/HttpClient";
-import type { Perfil, UsuarioDTO } from "../types/api";
+import { PERFIS, type Perfil, type UsuarioDTO } from "../types/api";
 
 const TOKEN_KEY = "fbs_token";
 const USUARIO_KEY = "fbs_usuario";
-
-const PERFIS: Perfil[] = ["GERENTE", "ATENDENTE", "FARMACEUTICO", "CAIXA"];
 
 type AuthContextValue = {
   token: string | null;
   isAuthenticated: boolean;
   usuario: UsuarioDTO | null;
+  perfil: Perfil | undefined;
   http: InterfaceHttpClient;
   setSession: (token: string, usuario: UsuarioDTO) => void;
   logout: () => void;
@@ -28,13 +27,13 @@ function readStoredToken(): string | null {
 
 function isUsuarioDTO(value: unknown): value is UsuarioDTO {
   if (!value || typeof value !== "object") return false;
-  const u = value as Record<string, unknown>;
+  const candidato = value as Record<string, unknown>;
   return (
-    typeof u.id === "number" &&
-    typeof u.nome === "string" &&
-    typeof u.email === "string" &&
-    typeof u.perfil === "string" &&
-    PERFIS.includes(u.perfil as Perfil)
+    typeof candidato.id === "number" &&
+    typeof candidato.nome === "string" &&
+    typeof candidato.email === "string" &&
+    typeof candidato.perfil === "string" &&
+    PERFIS.includes(candidato.perfil as Perfil)
   );
 }
 
@@ -60,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(TOKEN_KEY, nextToken);
       localStorage.setItem(USUARIO_KEY, JSON.stringify(nextUsuario));
     } catch {
-      /* ignore storage errors */
+      /* armazenamento indisponível: a sessão vive só em memória */
     }
   }, []);
 
@@ -71,16 +70,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USUARIO_KEY);
     } catch {
-      /* ignore storage errors */
+      /* armazenamento indisponível: nada a limpar */
     }
   }, []);
 
+  /**
+   * O token é lido do storage a cada request (e não capturado no closure) para
+   * que uma renovação de sessão em outra aba seja respeitada. Um 401 vindo da
+   * API derruba a sessão local e o `ProtectedRoute` manda para o login.
+   */
   const http = useMemo(
     () =>
-      new HttpClient(import.meta.env.VITE_API_BASE_URL ?? "/api", () =>
-        localStorage.getItem(TOKEN_KEY),
+      new HttpClient(
+        import.meta.env.VITE_API_BASE_URL ?? "/api",
+        () => readStoredToken(),
+        () => {
+          if (readStoredToken()) logout();
+        },
       ),
-    [],
+    [logout],
   );
 
   const value = useMemo(
@@ -88,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       isAuthenticated: Boolean(token),
       usuario,
+      perfil: usuario?.perfil,
       http,
       setSession,
       logout,

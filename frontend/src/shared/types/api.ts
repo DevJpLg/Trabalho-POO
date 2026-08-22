@@ -1,21 +1,38 @@
+/**
+ * Contratos da API (`/api`), espelhando o que os controllers do backend
+ * realmente serializam hoje. Ver ERROS_BACKEND.md para as divergências conhecidas.
+ */
+
 export type MessageResponse = {
   message: string;
 };
 
 export type Perfil = "GERENTE" | "ATENDENTE" | "FARMACEUTICO" | "CAIXA";
 
+export const PERFIS: readonly Perfil[] = ["GERENTE", "ATENDENTE", "FARMACEUTICO", "CAIXA"] as const;
+
+export const perfilLabel: Record<Perfil, string> = {
+  GERENTE: "Gerente",
+  ATENDENTE: "Atendente",
+  FARMACEUTICO: "Farmacêutico",
+  CAIXA: "Caixa",
+};
+
 export type Classificacao = "LIVRE" | "CONTROLADO" | "PRESCRITO";
+
+export const classificacaoLabel: Record<Classificacao, string> = {
+  LIVRE: "Livre",
+  CONTROLADO: "Controlado",
+  PRESCRITO: "Prescrito",
+};
+
+/* ========== Usuário ========== */
 
 export type UsuarioDTO = {
   id: number;
   nome: string;
   email: string;
   perfil: Perfil;
-};
-
-export type LoginResponse = {
-  token: string;
-  usuario: UsuarioDTO;
 };
 
 export type UsuarioInput = {
@@ -25,6 +42,13 @@ export type UsuarioInput = {
   perfil: Perfil;
   numeroCRM?: string;
 };
+
+export type LoginResponse = {
+  token: string;
+  usuario: UsuarioDTO;
+};
+
+/* ========== Produto ========== */
 
 export type ProdutoDTO = {
   id: number;
@@ -79,6 +103,42 @@ export type ProdutoInput = {
   isActive?: boolean;
 };
 
+/* ========== Venda ========== */
+
+export type StatusVenda =
+  | "EM_ANDAMENTO"
+  | "EM_AVALIACAO"
+  | "AGUARDANDO_PAGAMENTO"
+  | "FINALIZADA"
+  | "CANCELADA";
+
+export const STATUS_VENDA: readonly StatusVenda[] = [
+  "EM_ANDAMENTO",
+  "EM_AVALIACAO",
+  "AGUARDANDO_PAGAMENTO",
+  "FINALIZADA",
+  "CANCELADA",
+] as const;
+
+export const statusVendaLabel: Record<StatusVenda, string> = {
+  EM_ANDAMENTO: "Em aberto",
+  EM_AVALIACAO: "Em avaliação",
+  AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
+  FINALIZADA: "Finalizada",
+  CANCELADA: "Cancelada",
+};
+
+export type VendaDTO = {
+  id: number | null;
+  dataHora: string;
+  status: StatusVenda;
+  idAtendente: number | null;
+  idFarmaceutico: number | null;
+  idCaixa: number | null;
+};
+
+/* ========== Item de venda ========== */
+
 export type ItemVendaDTO = {
   id: number;
   quantidade: number;
@@ -90,37 +150,26 @@ export type ItemVendaDTO = {
   produtoId: number;
 };
 
-export type StatusVenda =
-  | "EM_ANDAMENTO"
-  | "EM_AVALIACAO"
-  | "AGUARDANDO_PAGAMENTO"
-  | "FINALIZADA"
-  | "CANCELADA";
-
-export type VendaDTO = {
-  id: number | null;
-  dataHora: string;
-  status: StatusVenda;
-  idAtendente: number | null;
-  idFarmaceutico: number | null;
-  idCaixa: number | null;
+export type TotalVendaDTO = {
+  vendaId: number;
+  total: number;
 };
 
+/* ========== Prescrição ========== */
+
 export type PrescricaoDTO = {
-  id?: number;
-  numeroPrescricao?: string;
-  nomeMedico?: string;
-  numeroCrm?: string;
-  ufCrm?: string;
-  nomePaciente?: string;
-  retencao?: boolean;
-  dataEmissao?: string;
-  dataValidade?: string;
-  anexo?: string;
-  retida?: boolean;
-  vendaId?: number;
-  // getters may serialize oddly — keep index signature tolerant
-  [key: string]: unknown;
+  id: number;
+  numeroPrescricao: string;
+  nomeMedico: string;
+  numeroCrm: string;
+  ufCrm: string;
+  nomePaciente: string;
+  retencao: boolean;
+  dataEmissao: string;
+  dataValidade: string;
+  anexo: string;
+  retida: boolean;
+  vendaId: number;
 };
 
 export type PrescricaoInput = {
@@ -136,3 +185,8 @@ export type PrescricaoInput = {
   retida: boolean;
   vendaId: number;
 };
+
+export const UFS: readonly string[] = [
+  "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT",
+  "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
+] as const;

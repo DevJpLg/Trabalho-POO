@@ -1,4 +1,24 @@
+import type { ComponentType, SVGProps } from "react";
 import type { Perfil } from "../types/api";
+import {
+  IconCart,
+  IconClipboardCheck,
+  IconFileMedical,
+  IconHeadset,
+  IconHome,
+  IconPills,
+  IconRegister,
+  IconUsers,
+} from "./icons";
+import {
+  PERFIS_AVALIAM_ITENS,
+  PERFIS_CONSULTAM_PRODUTOS,
+  PERFIS_CONTROLAM_VALIDADE,
+  PERFIS_GERENCIAM_PRESCRICOES,
+  PERFIS_GERENCIAM_PRODUTOS,
+  PERFIS_VEEM_VENDAS,
+  temPerfil,
+} from "../auth/permissoes";
 
 export const ALL_PERFIS: Perfil[] = ["GERENTE", "ATENDENTE", "FARMACEUTICO", "CAIXA"];
 
@@ -8,90 +28,90 @@ export type NavChild = {
   roles?: Perfil[];
 };
 
+/** Ícones são componentes locais: nada depende de CDN externo para o menu aparecer. */
+export type IconeNav = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
+
 export type NavItem = {
   id: string;
   label: string;
-  icon: string;
+  icon: IconeNav;
   roles: Perfil[];
   to?: string;
   end?: boolean;
   children?: NavChild[];
 };
 
+/**
+ * Menu lateral. Cada item só aparece para perfis que conseguem, de fato, usar a
+ * rota da API por trás dele — as listas de perfis vêm de `shared/auth/permissoes`.
+ */
 export const navItems: NavItem[] = [
   {
     id: "inicio",
     label: "Início",
-    icon: "fa-house",
+    icon: IconHome,
     to: "/",
     end: true,
     roles: ALL_PERFIS,
   },
   {
-    id: "caixa",
-    label: "Caixa",
-    icon: "fa-cash-register",
-    roles: ["CAIXA"],
-    children: [
-      { to: "/caixa/novo", label: "Novo Atendimento" },
-      { to: "/caixa/historico", label: "Histórico de Atendimentos" },
-    ],
-  },
-  {
     id: "atendimento",
     label: "Atendimento",
-    icon: "fa-headset",
+    icon: IconHeadset,
+    to: "/atendimento",
     roles: ["ATENDENTE"],
-    children: [
-      { to: "/atendimento/novo", label: "Novo Atendimento" },
-      { to: "/atendimento/historico", label: "Histórico de Atendimentos" },
-    ],
+  },
+  {
+    id: "caixa",
+    label: "Caixa",
+    icon: IconRegister,
+    to: "/caixa",
+    roles: ["CAIXA"],
   },
   {
     id: "avaliacoes",
     label: "Avaliações",
-    icon: "fa-clipboard-check",
-    roles: ["FARMACEUTICO"],
-    children: [
-      { to: "/avaliacoes/pendentes", label: "Avaliações Pendentes" },
-      { to: "/avaliacoes/historico", label: "Histórico de Avaliações" },
-    ],
+    icon: IconClipboardCheck,
+    to: "/avaliacoes",
+    roles: PERFIS_AVALIAM_ITENS,
   },
   {
     id: "produtos",
     label: "Produtos",
-    icon: "fa-pills",
-    roles: ["FARMACEUTICO", "GERENTE"],
+    icon: IconPills,
+    roles: PERFIS_CONSULTAM_PRODUTOS,
     children: [
-      { to: "/produtos/entrada", label: "Entrada de Produtos", roles: ["GERENTE"] },
-      { to: "/produtos", label: "Todos os Produtos" },
-      { to: "/produtos/validades", label: "Controle de Validades", roles: ["FARMACEUTICO"] },
+      { to: "/produtos", label: "Todos os Produtos", roles: PERFIS_GERENCIAM_PRODUTOS },
+      { to: "/produtos/entrada", label: "Entrada de Produtos", roles: PERFIS_GERENCIAM_PRODUTOS },
+      { to: "/produtos", label: "Consultar Produtos", roles: ["ATENDENTE", "CAIXA", "FARMACEUTICO"] },
+      { to: "/produtos/validades", label: "Controle de Validades", roles: PERFIS_CONTROLAM_VALIDADE },
     ],
   },
   {
     id: "prescricoes",
     label: "Prescrições",
-    icon: "fa-file-medical",
-    roles: ["FARMACEUTICO"],
-    children: [
-      { to: "/prescricoes/pendentes", label: "Prescrições Pendentes" },
-      { to: "/prescricoes/historico", label: "Histórico de Prescrições" },
-    ],
+    icon: IconFileMedical,
+    to: "/prescricoes",
+    roles: PERFIS_GERENCIAM_PRESCRICOES,
+  },
+  {
+    id: "vendas",
+    label: "Vendas",
+    icon: IconCart,
+    to: "/vendas",
+    roles: PERFIS_VEEM_VENDAS,
   },
   {
     id: "usuarios",
     label: "Usuários",
-    icon: "fa-users",
-    roles: ["GERENTE"],
-    children: [
-      { to: "/usuarios/novo", label: "Novo Usuário" },
-      { to: "/usuarios", label: "Todos os usuários" },
-    ],
+    icon: IconUsers,
+    to: "/usuarios",
+    roles: ALL_PERFIS,
   },
 ];
 
 export function perfilPode(perfil: Perfil | undefined, roles: Perfil[]): boolean {
-  return Boolean(perfil && roles.includes(perfil));
+  return temPerfil(perfil, roles);
 }
 
 export function filhosVisiveis(item: NavItem, perfil: Perfil | undefined): NavChild[] {
@@ -100,18 +120,13 @@ export function filhosVisiveis(item: NavItem, perfil: Perfil | undefined): NavCh
 
 export const pageTitles: Record<string, string> = {
   "/": "Visão geral",
-  "/caixa/novo": "Novo Atendimento",
-  "/caixa/historico": "Histórico de Atendimentos",
-  "/atendimento/novo": "Novo Atendimento",
-  "/atendimento/historico": "Histórico de Atendimentos",
-  "/avaliacoes/pendentes": "Avaliações Pendentes",
-  "/avaliacoes/historico": "Histórico de Avaliações",
-  "/produtos": "Todos os Produtos",
+  "/atendimento": "Atendimento",
+  "/caixa": "Caixa",
+  "/avaliacoes": "Avaliações",
+  "/produtos": "Produtos",
   "/produtos/entrada": "Entrada de Produtos",
   "/produtos/validades": "Controle de Validades",
-  "/prescricoes/pendentes": "Prescrições Pendentes",
-  "/prescricoes/historico": "Histórico de Prescrições",
-  "/usuarios": "Usuários",
-  "/usuarios/novo": "Novo Usuário",
+  "/prescricoes": "Prescrições",
   "/vendas": "Vendas",
+  "/usuarios": "Usuários",
 };
