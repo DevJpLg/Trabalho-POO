@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import type { Perfil } from "../types/api";
+import { perfilLabel, type Perfil } from "../types/api";
 import { BrandLogo } from "./BrandLogo";
+import { IconButton } from "./Button";
 import { filhosVisiveis, navItems, pageTitles, perfilPode, type NavItem } from "./nav";
 import { PageTitleContext } from "./usePageTitle";
-import { IconBell, IconClose, IconLogout, IconMenu, IconSearch } from "./icons";
-import { Button } from "./Button";
+import { IconChevronDown, IconClose, IconLogout, IconMenu, IconSearch, IconUser } from "./icons";
 
-const perfilLabel: Record<Perfil, string> = {
-  GERENTE: "Gerente",
-  ATENDENTE: "Atendente",
-  FARMACEUTICO: "Farmacêutico",
-  CAIXA: "Caixa",
-};
+const iniciais = (nome: string) =>
+  nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() ?? "")
+    .join("");
 
 function UserMenu() {
   const { logout, usuario } = useAuth();
@@ -45,30 +46,34 @@ function UserMenu() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="flex size-12 items-center justify-center rounded-full bg-white text-ink-muted shadow-[0_8px_20px_rgba(26,46,37,0.06)] transition hover:text-ink"
+        className="flex size-11 items-center justify-center rounded-full bg-brand-green text-sm font-bold text-white shadow-card transition-all duration-150 hover:bg-brand-green-dark active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40"
         aria-label="Menu do usuário"
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((current) => !current)}
       >
-        <i className="fa-solid fa-user text-[18px]" aria-hidden="true" />
+        {usuario ? iniciais(usuario.nome) : <IconUser size={18} />}
       </button>
 
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-52 rounded-2xl bg-white p-1.5 shadow-[0_16px_40px_rgba(26,46,37,0.12)]"
+          className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-2xl bg-surface p-1.5 shadow-pop ring-1 ring-line animate-surgir"
         >
           {usuario ? (
-            <div className="border-b border-line px-3 py-2.5">
+            <div className="border-b border-line px-3 py-3">
               <p className="truncate text-sm font-semibold text-ink">{usuario.nome}</p>
-              <p className="mt-0.5 text-xs font-medium text-ink-muted">{perfilLabel[usuario.perfil]}</p>
+              <p className="truncate text-xs text-ink-muted">{usuario.email}</p>
+              <p className="mt-1.5 inline-flex rounded-full bg-brand-green-soft px-2 py-0.5 text-[11px] font-semibold text-brand-green">
+                {perfilLabel[usuario.perfil]}
+              </p>
             </div>
           ) : null}
+
           <button
             type="button"
             role="menuitem"
-            className="mt-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-brand-red-soft hover:text-brand-red"
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-brand-red-soft hover:text-brand-red"
             onClick={() => {
               setOpen(false);
               logout();
@@ -101,33 +106,37 @@ function SidebarGroup({
     if (childActive) setOpen(true);
   }, [childActive]);
 
-  if (item.to) {
+  const base =
+    "group relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-[15px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/35";
+  const ativo = "bg-brand-green-soft text-brand-green shadow-sm";
+  const inativo = "text-ink-muted hover:bg-surface-hover hover:text-ink";
+
+  // Um grupo que sobrou com um filho só não é menu nenhum: vira link direto,
+  // como acontece com "Produtos" para quem apenas consulta o catálogo.
+  const destino = item.to ?? (children.length === 1 ? children[0].to : undefined);
+
+  if (destino) {
     return (
       <NavLink
-        to={item.to}
-        end={item.end}
+        to={destino}
+        end={item.end ?? (item.to ? undefined : true)}
         onClick={onNavigate}
-        className={({ isActive }) =>
-          `group relative flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium transition ${
-            isActive ? "text-brand-green" : "text-ink-muted hover:bg-canvas hover:text-ink"
-          }`
-        }
+        className={({ isActive }) => `${base} ${isActive ? ativo : inativo}`}
       >
         {({ isActive }) => (
           <>
-            {isActive ? (
-              <span className="absolute -left-5 top-1/2 h-8 w-1.5 -translate-y-1/2 rounded-r-full bg-brand-green" />
-            ) : null}
-            <i
-              className={`fa-solid ${item.icon} w-5 text-center text-[15px] ${isActive ? "text-brand-green" : "text-ink-muted"}`}
-              aria-hidden="true"
+            <item.icon
+              size={19}
+              className={`shrink-0 ${isActive ? "text-brand-green" : "text-ink-muted group-hover:text-ink"}`}
             />
-            {item.label}
+            <span className="truncate">{item.label}</span>
           </>
         )}
       </NavLink>
     );
   }
+
+  if (children.length === 0) return null;
 
   return (
     <div>
@@ -135,37 +144,32 @@ function SidebarGroup({
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition ${
-          childActive ? "text-brand-green" : "text-ink-muted hover:bg-canvas hover:text-ink"
-        }`}
+        className={`${base} text-left ${childActive ? ativo : inativo}`}
       >
-        {childActive ? (
-          <span className="absolute -left-5 top-1/2 h-8 w-1.5 -translate-y-1/2 rounded-r-full bg-brand-green" />
-        ) : null}
-        <i
-          className={`fa-solid ${item.icon} w-5 text-center text-[15px] ${childActive ? "text-brand-green" : "text-ink-muted"}`}
-          aria-hidden="true"
+        <item.icon
+          size={19}
+          className={`shrink-0 ${childActive ? "text-brand-green" : "text-ink-muted group-hover:text-ink"}`}
         />
-        <span className="flex-1">{item.label}</span>
-        <i
-          className={`fa-solid fa-chevron-down text-[11px] transition ${open ? "rotate-180" : ""} ${
-            childActive ? "text-brand-green" : "text-ink-muted"
-          }`}
-          aria-hidden="true"
+        <span className="flex-1 truncate">{item.label}</span>
+        <IconChevronDown
+          size={15}
+          className={`shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       {open ? (
-        <div className="mb-1 ml-8 mt-0.5 flex flex-col gap-0.5 border-l border-line pl-3">
+        <div className="mb-1 ml-6 mt-1 flex flex-col gap-0.5 border-l border-line pl-3">
           {children.map((child) => (
             <NavLink
-              key={child.to}
+              key={`${child.to}-${child.label}`}
               to={child.to}
               end
               onClick={onNavigate}
               className={({ isActive }) =>
-                `rounded-lg px-2 py-2 text-[13px] font-medium leading-snug transition ${
-                  isActive ? "text-brand-green" : "text-ink-muted hover:bg-canvas hover:text-ink"
+                `rounded-xl px-3 py-2 text-[13px] font-medium leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/35 ${
+                  isActive
+                    ? "bg-brand-green-soft/70 text-brand-green"
+                    : "text-ink-muted hover:bg-surface-hover hover:text-ink"
                 }`
               }
             >
@@ -183,32 +187,42 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const items = navItems.filter((item) => perfilPode(usuario?.perfil, item.roles));
 
   return (
-    <div className="flex h-full flex-col px-5 py-2">
-      <BrandLogo compact className="mb-1 ml-1" />
+    <div className="flex h-full flex-col gap-1 px-4 py-5">
+      <div className="px-1 pb-3">
+        <BrandLogo compact />
+      </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto" aria-label="Principal">
+      <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-ink-muted/70">
+        Menu
+      </p>
+
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto pb-2" aria-label="Principal">
         {usuario
           ? items.map((item) => (
-              <SidebarGroup key={item.id} item={item} perfil={usuario.perfil} onNavigate={onNavigate} />
+              <SidebarGroup
+                key={item.id}
+                item={item}
+                perfil={usuario.perfil}
+                onNavigate={onNavigate}
+              />
             ))
           : null}
       </nav>
 
       {usuario ? (
-        <div className="mt-6 rounded-xl bg-canvas px-3 py-3">
-          <p className="truncate text-sm font-semibold text-ink">{usuario.nome}</p>
-          <p className="mt-0.5 text-xs font-medium text-ink-muted">{perfilLabel[usuario.perfil]}</p>
+        <div className="mt-2 flex items-center gap-3 rounded-2xl bg-surface-muted px-3 py-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-green text-xs font-bold text-white">
+            {iniciais(usuario.nome)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-ink">{usuario.nome}</p>
+            <p className="truncate text-xs text-ink-muted">{perfilLabel[usuario.perfil]}</p>
+          </div>
+          <IconButton label="Sair" tone="danger" onClick={logout}>
+            <IconLogout size={17} />
+          </IconButton>
         </div>
       ) : null}
-
-      <button
-        type="button"
-        onClick={logout}
-        className="mt-2 flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium text-ink-muted transition hover:bg-brand-red-soft hover:text-brand-red"
-      >
-        <IconLogout size={20} />
-        Sair
-      </button>
     </div>
   );
 }
@@ -220,40 +234,43 @@ export function AppLayout() {
   const [title, setTitle] = useState(pageTitles[location.pathname] ?? "Painel");
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const perfil = usuario?.perfil;
-  const showSearch = perfilPode(perfil, ["GERENTE", "FARMACEUTICO"]);
-  const showNovaVenda = perfilPode(perfil, ["ATENDENTE", "CAIXA"]);
-  const showNotificacoes = perfilPode(perfil, ["FARMACEUTICO"]);
 
   const setPageTitle = useCallback((next: string) => setTitle(next), []);
   const titleValue = useMemo(() => setPageTitle, [setPageTitle]);
+
+  // Fecha o menu lateral ao trocar de rota no celular.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   function onSearch(event: FormEvent) {
     event.preventDefault();
     const q = query.trim();
     navigate(q ? `/produtos?q=${encodeURIComponent(q)}` : "/produtos");
-    setMenuOpen(false);
   }
 
   return (
     <PageTitleContext.Provider value={titleValue}>
-      <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[250px_1fr]">
-        <aside className="hidden bg-white lg:block">
-          <SidebarNav />
-        </aside>
+      <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[264px_1fr]">
+        {/* O wrapper carrega o fundo (acompanha a altura da página) e a nav fica presa no topo. */}
+        <div className="hidden border-r border-line bg-surface lg:block">
+          <aside className="sticky top-0 h-screen">
+            <SidebarNav />
+          </aside>
+        </div>
 
         {menuOpen ? (
           <div className="fixed inset-0 z-40 lg:hidden">
             <button
               type="button"
-              className="absolute inset-0 bg-ink/30"
+              className="absolute inset-0 bg-overlay backdrop-blur-[2px]"
               aria-label="Fechar menu"
               onClick={() => setMenuOpen(false)}
             />
-            <aside className="relative z-10 h-full w-[250px] bg-white shadow-xl">
+            <aside className="relative z-10 h-full w-[272px] bg-surface shadow-pop animate-surgir">
               <button
                 type="button"
-                className="absolute right-3 top-4 rounded-full p-2 text-ink-muted"
+                className="absolute right-3 top-4 z-20 rounded-xl p-2 text-ink-muted transition hover:bg-surface-hover hover:text-ink"
                 onClick={() => setMenuOpen(false)}
                 aria-label="Fechar"
               >
@@ -265,63 +282,47 @@ export function AppLayout() {
         ) : null}
 
         <div className="flex min-h-screen flex-col">
-          <header className="flex items-center justify-between gap-4 px-5 py-6 sm:px-8">
+          <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-line/70 bg-canvas/85 px-5 py-4 backdrop-blur-md sm:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
-                className="rounded-full bg-white p-2.5 text-ink shadow-[0_8px_20px_rgba(26,46,37,0.06)] lg:hidden"
+                className="rounded-xl bg-surface p-2.5 text-ink shadow-card ring-1 ring-line transition hover:bg-surface-hover lg:hidden"
                 onClick={() => setMenuOpen(true)}
                 aria-label="Abrir menu"
               >
                 <IconMenu />
               </button>
-              <h1 className="truncate text-[22px] font-semibold tracking-tight text-ink sm:text-[28px]">
-                {title}
-              </h1>
+              <div className="min-w-0">
+                <h1 className="truncate text-[21px] font-bold tracking-tight text-ink sm:text-[26px]">
+                  {title}
+                </h1>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
-              {showSearch ? (
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              {usuario ? (
                 <form onSubmit={onSearch} className="hidden md:block">
                   <label className="relative block">
                     <span className="sr-only">Buscar produtos</span>
-                    <IconSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted" />
+                    <IconSearch
+                      size={18}
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-muted"
+                    />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Buscar produto..."
-                      className="h-12 w-56 rounded-full bg-white pl-11 pr-4 text-sm text-ink shadow-[0_8px_20px_rgba(26,46,37,0.04)] outline-none placeholder:text-ink-muted focus:ring-2 focus:ring-brand-green/25 lg:w-72"
+                      className="h-11 w-56 rounded-full bg-surface pl-11 pr-4 text-sm text-ink shadow-card outline-none ring-1 ring-line transition-all placeholder:text-ink-muted/80 hover:ring-ink-muted/35 focus:w-64 focus:ring-2 focus:ring-brand-green/45 lg:w-72 lg:focus:w-80"
                     />
                   </label>
                 </form>
               ) : null}
 
-              {showNovaVenda ? (
-                <Button
-                  type="button"
-                  onClick={() =>
-                    navigate(perfil === "CAIXA" ? "/caixa/novo" : "/atendimento/novo")
-                  }
-                >
-                  Nova venda
-                </Button>
-              ) : null}
-
-              {showNotificacoes ? (
-                <button
-                  type="button"
-                  className="relative flex size-12 items-center justify-center rounded-full bg-white text-ink-muted shadow-[0_8px_20px_rgba(26,46,37,0.06)]"
-                  aria-label="Notificações"
-                >
-                  <IconBell />
-                  <span className="absolute right-3 top-3 size-2 rounded-full bg-brand-red" />
-                </button>
-              ) : null}
               <UserMenu />
             </div>
           </header>
 
-          <main className="flex-1 px-5 pb-10 sm:px-8">
+          <main className="flex-1 px-5 pb-12 pt-6 sm:px-8">
             <Outlet />
           </main>
         </div>

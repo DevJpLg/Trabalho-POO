@@ -1,27 +1,47 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../../../shared/auth/AuthContext";
+import { podeGerenciarUsuarios } from "../../../shared/auth/permissoes";
+import { ApiError } from "../../../shared/http/HttpClient";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
-import type { Perfil, UsuarioDTO, UsuarioInput } from "../../../shared/types/api";
+import {
+  PERFIS,
+  perfilLabel,
+  type Perfil,
+  type UsuarioDTO,
+  type UsuarioInput,
+} from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
-import { Button } from "../../../shared/ui/Button";
-import { Input, Select } from "../../../shared/ui/Input";
+import { Button, IconButton } from "../../../shared/ui/Button";
+import { Card } from "../../../shared/ui/Card";
+import { Input } from "../../../shared/ui/Input";
+import { Select } from "../../../shared/ui/Select";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
+import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
 import { StatCard } from "../../../shared/ui/StatCard";
-import { Table } from "../../../shared/ui/Table";
+import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { pageTitles } from "../../../shared/ui/nav";
-import { IconPlus, IconUsers } from "../../../shared/ui/icons";
+import {
+  IconPencil,
+  IconPlus,
+  IconSearch,
+  IconShield,
+  IconTrash,
+  IconUser,
+  IconUsers,
+} from "../../../shared/ui/icons";
 import { UsuarioRepository } from "../usuario.repository";
 import { UsuarioService } from "../usuario.service";
 
-const perfilOptions = [
-  { value: "GERENTE", label: "Gerente" },
-  { value: "ATENDENTE", label: "Atendente" },
-  { value: "FARMACEUTICO", label: "Farmacêutico" },
-  { value: "CAIXA", label: "Caixa" },
-];
+const perfilOptions = PERFIS.map((perfil) => ({ value: perfil, label: perfilLabel[perfil] }));
+
+const tonesPerfil: Record<Perfil, "red" | "green" | "amber" | "neutral"> = {
+  GERENTE: "red",
+  FARMACEUTICO: "amber",
+  ATENDENTE: "green",
+  CAIXA: "neutral",
+};
+
+const tonePerfil = (perfil: Perfil) => tonesPerfil[perfil];
 
 const emptyForm: UsuarioInput = {
   nome: "",
@@ -31,45 +51,70 @@ const emptyForm: UsuarioInput = {
   numeroCRM: "",
 };
 
+/**
+ * A aba fica visível para todos os perfis, mas o que ela mostra depende de quem
+ * entrou: o gerente administra a equipe inteira; os demais veem só os próprios
+ * dados de acesso, porque `GET /api/usuarios` é restrito ao gerente no backend.
+ */
 export function UsuariosPage() {
-  const location = useLocation();
-  usePageTitle(pageTitles[location.pathname] ?? "Usuários");
-  const { http } = useAuth();
+  usePageTitle("Usuários");
+  const { usuario } = useAuth();
+
+  return podeGerenciarUsuarios(usuario?.perfil) ? <GestaoDeUsuarios /> : <MeuAcesso />;
+}
+
+/* ==================== visão do gerente ==================== */
+
+function GestaoDeUsuarios() {
+  const { http, usuario: usuarioLogado } = useAuth();
   const service = useMemo(() => new UsuarioService(new UsuarioRepository(http)), [http]);
 
   const [busca, setBusca] = useState("");
   const [rows, setRows] = useState<UsuarioDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UsuarioDTO | null>(null);
   const [form, setForm] = useState<UsuarioInput>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  async function load(currentBusca = busca) {
-    setLoading(true);
-    setError(null);
-    try {
-      setRows(await service.listar(currentBusca));
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+  const carregar = useCallback(
+    async (termo: string) => {
+      setLoading(true);
+      setError(null);
+      setAviso(null);
+      try {
+        setRows(await service.listar(termo));
+      } catch (err) {
+        // Com um único usuário cadastrado o backend quebra ao serializar a lista
+        // (ver ERROS_BACKEND.md). Mostramos o próprio usuário logado para que dê
+        // para cadastrar o segundo e sair desse estado.
+        if (err instanceof ApiError && err.status >= 500 && usuarioLogado) {
+          setRows([usuarioLogado]);
+          setAviso(
+            "A API só devolve a listagem quando há mais de um usuário cadastrado. " +
+              "Exibindo apenas o seu usuário — cadastre outro para a lista voltar ao normal.",
+          );
+        } else {
+          setError(getErrorMessage(err));
+          setRows([]);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [service, usuarioLogado],
+  );
+
+  useEffect(() => {
+    void carregar("");
+  }, [carregar]);
+
+  function fecharModal() {
+    setModalOpen(false);
   }
-
-  useEffect(() => {
-    void load("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (location.pathname === "/usuarios/novo") {
-      openCreate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
 
   function openCreate() {
     setEditing(null);
@@ -77,13 +122,13 @@ export function UsuariosPage() {
     setModalOpen(true);
   }
 
-  function openEdit(user: UsuarioDTO) {
-    setEditing(user);
+  function openEdit(usuario: UsuarioDTO) {
+    setEditing(usuario);
     setForm({
-      nome: user.nome,
-      email: user.email,
+      nome: usuario.nome,
+      email: usuario.email,
       senha: "",
-      perfil: user.perfil,
+      perfil: usuario.perfil,
       numeroCRM: "",
     });
     setModalOpen(true);
@@ -101,18 +146,19 @@ export function UsuariosPage() {
         perfil: form.perfil,
         numeroCRM: form.perfil === "FARMACEUTICO" ? form.numeroCRM : undefined,
       };
-      if (form.senha.trim() !== "") {
-        payload.senha = form.senha;
+
+      const senha = (form.senha ?? "").trim();
+      if (senha !== "") {
+        payload.senha = senha;
       }
-      if (editing) {
-        const result = await service.editar(editing.id, payload);
-        setSuccess(result.message);
-      } else {
-        const result = await service.cadastrar(payload);
-        setSuccess(result.message);
-      }
-      setModalOpen(false);
-      await load();
+
+      const resultado = editing
+        ? await service.editar(editing.id, payload)
+        : await service.cadastrar(payload);
+
+      setSuccess(resultado.message);
+      fecharModal();
+      await carregar(busca);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -120,25 +166,30 @@ export function UsuariosPage() {
     }
   }
 
-  async function onDelete(user: UsuarioDTO) {
-    if (!confirm(`Excluir o usuário ${user.nome}?`)) return;
+  async function onDelete(usuario: UsuarioDTO) {
+    if (usuario.id === usuarioLogado?.id) {
+      setError("Você não pode excluir o próprio usuário enquanto está logado com ele.");
+      return;
+    }
+    if (!confirm(`Excluir o usuário ${usuario.nome}?`)) return;
+
     setError(null);
     setSuccess(null);
     try {
-      await service.deletar(user.id);
+      await service.deletar(usuario.id);
       setSuccess("Usuário removido.");
-      await load();
+      await carregar(busca);
     } catch (err) {
       setError(getErrorMessage(err));
     }
   }
 
-  const byPerfil = (perfil: UsuarioDTO["perfil"]) => rows.filter((u) => u.perfil === perfil).length;
+  const contar = (perfil: Perfil) => rows.filter((usuario) => usuario.perfil === perfil).length;
 
   return (
     <div>
       <PageHeader
-        description="Cadastro e manutenção de perfis da equipe."
+        description="Cadastro e manutenção dos perfis da equipe."
         actions={
           <Button type="button" onClick={openCreate}>
             <IconPlus size={16} /> Novo usuário
@@ -147,24 +198,30 @@ export function UsuariosPage() {
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Gerentes" value={byPerfil("GERENTE")} icon={<IconUsers />} tone="red" />
-        <StatCard label="Atendentes" value={byPerfil("ATENDENTE")} icon={<IconUsers />} tone="green" />
-        <StatCard label="Farmacêuticos" value={byPerfil("FARMACEUTICO")} icon={<IconUsers />} tone="mint" />
-        <StatCard label="Caixas" value={byPerfil("CAIXA")} icon={<IconUsers />} tone="rose" />
+        <StatCard label="Gerentes" value={contar("GERENTE")} icon={<IconUsers />} tone="red" />
+        <StatCard label="Atendentes" value={contar("ATENDENTE")} icon={<IconUsers />} tone="green" />
+        <StatCard
+          label="Farmacêuticos"
+          value={contar("FARMACEUTICO")}
+          icon={<IconUsers />}
+          tone="mint"
+        />
+        <StatCard label="Caixas" value={contar("CAIXA")} icon={<IconUsers />} tone="rose" />
       </div>
 
       <form
         className="mb-4 flex flex-col gap-2 sm:flex-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void load(busca);
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          void carregar(busca);
         }}
       >
         <div className="flex-1">
           <Input
-            placeholder="Buscar por nome ou e-mail"
+            placeholder="Buscar por nome, e-mail ou perfil"
+            icone={<IconSearch size={17} />}
             value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(event) => setBusca(event.target.value)}
           />
         </div>
         <Button type="submit" variant="secondary">
@@ -175,6 +232,11 @@ export function UsuariosPage() {
       {error ? (
         <div className="mb-4">
           <Alert>{error}</Alert>
+        </div>
+      ) : null}
+      {aviso ? (
+        <div className="mb-4">
+          <Alert tone="info">{aviso}</Alert>
         </div>
       ) : null}
       {success ? (
@@ -188,30 +250,56 @@ export function UsuariosPage() {
       ) : (
         <Table
           rows={rows}
-          rowKey={(u) => u.id}
+          rowKey={(usuario) => usuario.id}
+          empty={
+            <EmptyState
+              icone={<IconUsers size={22} />}
+              titulo={busca ? "Nenhum usuário para essa busca" : "Equipe ainda vazia"}
+              descricao={
+                busca
+                  ? "Revise o termo ou limpe a busca para ver a equipe inteira."
+                  : "Cadastre atendentes, farmacêuticos e caixas para liberar o acesso deles."
+              }
+              acao={
+                busca ? undefined : (
+                  <Button type="button" onClick={openCreate}>
+                    <IconPlus size={16} /> Novo usuário
+                  </Button>
+                )
+              }
+            />
+          }
           columns={[
-            { key: "id", header: "ID", render: (u) => u.id },
-            { key: "nome", header: "Nome", render: (u) => u.nome },
-            { key: "email", header: "E-mail", render: (u) => u.email },
+            { key: "id", header: "ID", render: (usuario) => usuario.id },
+            { key: "nome", header: "Nome", render: (usuario) => usuario.nome },
+            { key: "email", header: "E-mail", render: (usuario) => usuario.email },
             {
               key: "perfil",
               header: "Perfil",
-              render: (u) => (
-                <Badge tone={u.perfil === "GERENTE" ? "red" : "green"}>{u.perfil}</Badge>
+              render: (usuario) => (
+                <Badge dot tone={tonePerfil(usuario.perfil)}>
+                  {perfilLabel[usuario.perfil]}
+                </Badge>
               ),
             },
             {
               key: "acoes",
               header: "Ações",
-              render: (u) => (
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" onClick={() => openEdit(u)}>
-                    Editar
-                  </Button>
-                  <Button type="button" variant="danger" onClick={() => void onDelete(u)}>
-                    Excluir
-                  </Button>
-                </div>
+              fim: true,
+              className: "min-w-24",
+              render: (usuario) => (
+                <RowActions>
+                  <IconButton label="Editar usuário" onClick={() => openEdit(usuario)}>
+                    <IconPencil size={17} />
+                  </IconButton>
+                  <IconButton
+                    label="Excluir usuário"
+                    tone="danger"
+                    onClick={() => void onDelete(usuario)}
+                  >
+                    <IconTrash size={17} />
+                  </IconButton>
+                </RowActions>
               ),
             },
           ]}
@@ -221,10 +309,10 @@ export function UsuariosPage() {
       <Modal
         open={modalOpen}
         title={editing ? "Editar usuário" : "Novo usuário"}
-        onClose={() => setModalOpen(false)}
+        onClose={fecharModal}
         footer={
           <>
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+            <Button type="button" variant="secondary" onClick={fecharModal}>
               Cancelar
             </Button>
             <Button type="submit" form="usuario-form" disabled={saving}>
@@ -238,40 +326,108 @@ export function UsuariosPage() {
             label="Nome"
             required
             value={form.nome}
-            onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+            onChange={(event) => setForm((atual) => ({ ...atual, nome: event.target.value }))}
           />
           <Input
             label="E-mail"
             type="email"
             required
             value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            onChange={(event) => setForm((atual) => ({ ...atual, email: event.target.value }))}
           />
           <Input
-            label="Senha"
+            label={editing ? "Nova senha (deixe em branco para manter)" : "Senha"}
             type="password"
             required={!editing}
-            placeholder={"********"}
-            value={form.senha}
-            onChange={(e) => setForm((f) => ({ ...f, senha: e.target.value }))}
+            placeholder="••••••••"
+            value={form.senha ?? ""}
+            onChange={(event) => setForm((atual) => ({ ...atual, senha: event.target.value }))}
           />
           <Select
             label="Perfil"
             options={perfilOptions}
             value={form.perfil}
-            onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as Perfil }))}
+            onChange={(valor) => setForm((atual) => ({ ...atual, perfil: valor as Perfil }))}
           />
           {form.perfil === "FARMACEUTICO" ? (
             <div className="sm:col-span-2">
               <Input
-                label="Número CRM / CRF"
+                label="Número CRF"
                 value={form.numeroCRM ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, numeroCRM: e.target.value }))}
+                onChange={(event) =>
+                  setForm((atual) => ({ ...atual, numeroCRM: event.target.value }))
+                }
               />
+              <p className="mt-1 text-xs text-ink-muted">
+                O cadastro atual da API não persiste o CRF; o campo fica registrado aqui para quando
+                o backend salvar o dado.
+              </p>
             </div>
           ) : null}
         </form>
       </Modal>
+    </div>
+  );
+}
+
+/* ==================== visão dos demais perfis ==================== */
+
+function MeuAcesso() {
+  const { usuario } = useAuth();
+
+  if (!usuario) {
+    return (
+      <EmptyState
+        icone={<IconUsers size={22} />}
+        titulo="Sessão não identificada"
+        descricao="Entre novamente para ver os seus dados de acesso."
+      />
+    );
+  }
+
+  const iniciais = usuario.nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0]?.toUpperCase() ?? "")
+    .join("");
+
+  return (
+    <div>
+      <PageHeader description="Os seus dados de acesso na farmácia." />
+
+      <Card className="mb-4">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-brand-green-soft text-xl font-bold text-brand-green">
+            {iniciais || <IconUser size={26} />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-semibold tracking-tight text-ink">{usuario.nome}</p>
+            <p className="mt-0.5 truncate text-sm text-ink-muted">{usuario.email}</p>
+            <div className="mt-3">
+              <Badge dot tone={tonePerfil(usuario.perfil)}>
+                {perfilLabel[usuario.perfil]}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 shrink-0 text-ink-muted">
+            <IconShield size={20} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-ink">Gestão da equipe</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+              A lista completa da equipe e o cadastro de novos usuários são exclusivos do perfil
+              Gerente. Para alterar os seus dados ou pedir um novo acesso, procure um gerente da
+              farmácia.
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

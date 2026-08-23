@@ -1,225 +1,314 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuth } from "../../../shared/auth/AuthContext";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
-import type { ItemVendaDTO } from "../../../shared/types/api";
+import {
+  statusVendaLabel,
+  type ItemVendaDTO,
+  type ProdutoDTO,
+  type StatusVenda,
+  type VendaDTO,
+} from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
-import { Button } from "../../../shared/ui/Button";
+import { Button, IconButton } from "../../../shared/ui/Button";
+import { Card, CardHeader } from "../../../shared/ui/Card";
+import { dataHora, moeda } from "../../../shared/ui/format";
 import { Input } from "../../../shared/ui/Input";
-import { Alert, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
+import { Select } from "../../../shared/ui/Select";
+import { Modal } from "../../../shared/ui/Modal";
+import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
 import { StatCard } from "../../../shared/ui/StatCard";
-import { Table } from "../../../shared/ui/Table";
+import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { pageTitles } from "../../../shared/ui/nav";
-import { IconCart, IconPlus } from "../../../shared/ui/icons";
+import { IconAlert, IconCart, IconHash, IconInbox, IconPills, IconRefresh, IconSearch, IconTrash, IconTrend } from "../../../shared/ui/icons";
+import { ProdutoRepository } from "../../produto/produto.repository";
+import { ProdutoService } from "../../produto/produto.service";
+import { VendaRepository } from "../../venda/venda.repository";
+import { VendaService } from "../../venda/venda.service";
 import { ItemVendaRepository } from "../itemVenda.repository";
 import { ItemVendaService } from "../itemVenda.service";
 
-const SEED_VENDAS = [1, 2, 3, 4, 5];
+/**
+ * Tela de atendimento (ATENDENTE) e de caixa (CAIXA).
+ *
+ * A venda não é digitada à mão: o seletor é alimentado por `GET /vendas`, única
+ * rota implementada do módulo Venda. Iniciar, finalizar e cancelar venda ainda
+ * respondem 501 no backend, então não aparecem aqui (ver ERROS_BACKEND.md).
+ */
+
+const STATUS_ATENDIMENTO: StatusVenda[] = ["EM_ANDAMENTO", "EM_AVALIACAO", "AGUARDANDO_PAGAMENTO"];
+
+function statusTone(status: StatusVenda) {
+  if (status === "EM_AVALIACAO") return "amber" as const;
+  if (status === "CANCELADA") return "red" as const;
+  if (status === "FINALIZADA") return "neutral" as const;
+  return "green" as const;
+}
 
 export function ItensVendaPage() {
-  const location = useLocation();
-  usePageTitle(pageTitles[location.pathname] ?? "Itens de venda");
-  const { http } = useAuth();
-  const service = useMemo(() => new ItemVendaService(new ItemVendaRepository(http)), [http]);
+  const { http, usuario } = useAuth();
+  const ehCaixa = usuario?.perfil === "CAIXA";
+  usePageTitle(ehCaixa ? "Caixa" : "Atendimento");
 
-  const [vendaIdInput, setVendaIdInput] = useState("1");
+  const itens = useMemo(() => new ItemVendaService(new ItemVendaRepository(http)), [http]);
+  const vendas = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
+  const produtos = useMemo(() => new ProdutoService(new ProdutoRepository(http)), [http]);
+
+  const [statusFiltro, setStatusFiltro] = useState<StatusVenda | "TODAS">(
+    ehCaixa ? "AGUARDANDO_PAGAMENTO" : "EM_ANDAMENTO",
+  );
+  const [listaVendas, setListaVendas] = useState<VendaDTO[]>([]);
   const [vendaId, setVendaId] = useState<number | null>(null);
-  const [busca, setBusca] = useState("");
-  const [rows, setRows] = useState<ItemVendaDTO[]>([]);
-  const [total, setTotal] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  const [linhas, setLinhas] = useState<ItemVendaDTO[]>([]);
+  const [total, setTotal] = useState(0);
+  const [catalogo, setCatalogo] = useState<ProdutoDTO[]>([]);
+  /** Acumula todo produto já visto, para o nome não sumir quando a busca filtra o catálogo. */
+  const [indiceProdutos, setIndiceProdutos] = useState<Map<number, ProdutoDTO>>(new Map());
+
+  const [carregandoVendas, setCarregandoVendas] = useState(true);
+  const [carregandoItens, setCarregandoItens] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [produtoId, setProdutoId] = useState("");
+  const [buscaProduto, setBuscaProduto] = useState("");
+  const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDTO | null>(null);
   const [quantidade, setQuantidade] = useState("1");
+  const [salvando, setSalvando] = useState(false);
 
-  async function load(id: number, currentBusca = busca) {
-    setLoading(true);
+  const [itemEditando, setItemEditando] = useState<ItemVendaDTO | null>(null);
+  const [novaQuantidade, setNovaQuantidade] = useState("1");
+
+  const vendaSelecionada = listaVendas.find((venda) => venda.id === vendaId) ?? null;
+
+  /* ========== Carregamento das vendas disponíveis ========== */
+
+  const carregarVendas = useCallback(async () => {
+    setCarregandoVendas(true);
     setError(null);
     try {
-      const [itens, totalResp] = await Promise.all([
-        service.listar(id, currentBusca),
-        service.calcularTotal(id),
-      ]);
-      setRows(itens);
-      setTotal(totalResp.total);
-      setVendaId(id);
+      const lista = await vendas.listar(statusFiltro === "TODAS" ? undefined : statusFiltro);
+      setListaVendas(lista);
+      setVendaId((atual) => {
+        if (atual !== null && lista.some((venda) => venda.id === atual)) return atual;
+        return lista[0]?.id ?? null;
+      });
     } catch (err) {
       setError(getErrorMessage(err));
-      setRows([]);
-      setTotal(null);
+      setListaVendas([]);
+      setVendaId(null);
     } finally {
-      setLoading(false);
+      setCarregandoVendas(false);
     }
-  }
+  }, [vendas, statusFiltro]);
 
   useEffect(() => {
-    void load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void carregarVendas();
+  }, [carregarVendas]);
 
-  function applyVendaId(event: FormEvent) {
-    event.preventDefault();
-    const id = Number(vendaIdInput);
-    if (!Number.isFinite(id) || id <= 0) {
-      setError("Informe um ID de venda válido.");
+  /* ========== Catálogo, para exibir nome do produto e alimentar o seletor ========== */
+
+  const carregarCatalogo = useCallback(
+    async (termo = "") => {
+      try {
+        const lista = await produtos.buscarVendaveis(termo);
+        setCatalogo(lista);
+        setIndiceProdutos((atual) => {
+          const proximo = new Map(atual);
+          lista.forEach((produto) => proximo.set(produto.id, produto));
+          return proximo;
+        });
+      } catch {
+        setCatalogo([]);
+      }
+    },
+    [produtos],
+  );
+
+  useEffect(() => {
+    void carregarCatalogo("");
+  }, [carregarCatalogo]);
+
+  /* ========== Itens da venda selecionada ========== */
+
+  const carregarItens = useCallback(
+    async (id: number) => {
+      setCarregandoItens(true);
+      setError(null);
+      try {
+        const resumo = await itens.carregarResumo(id);
+        setLinhas(resumo.itens);
+        setTotal(resumo.total);
+      } catch (err) {
+        setError(getErrorMessage(err));
+        setLinhas([]);
+        setTotal(0);
+      } finally {
+        setCarregandoItens(false);
+      }
+    },
+    [itens],
+  );
+
+  useEffect(() => {
+    if (vendaId === null) {
+      setLinhas([]);
+      setTotal(0);
       return;
     }
-    void load(id);
-  }
+    void carregarItens(vendaId);
+  }, [vendaId, carregarItens]);
 
-  async function onAdd(event: FormEvent) {
+  /* ========== Ações ========== */
+
+  async function onAdicionar(event: FormEvent) {
     event.preventDefault();
-    if (vendaId == null) return;
+    if (vendaId === null || !produtoSelecionado) return;
+
+    const qtd = Number(quantidade);
+    if (!Number.isInteger(qtd) || qtd <= 0) {
+      setError("A quantidade precisa ser um inteiro maior que zero.");
+      return;
+    }
+
+    setSalvando(true);
     setError(null);
     setSuccess(null);
     try {
-      const result = await service.adicionar(vendaId, Number(produtoId), Number(quantidade));
-      setSuccess(result.message);
-      setProdutoId("");
+      const resultado = await itens.adicionar(vendaId, produtoSelecionado.id, qtd);
+      setSuccess(resultado.message);
+      setProdutoSelecionado(null);
       setQuantidade("1");
-      await load(vendaId);
+      await carregarItens(vendaId);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function onAtualizarQuantidade(event: FormEvent) {
+    event.preventDefault();
+    if (vendaId === null || !itemEditando) return;
+
+    const qtd = Number(novaQuantidade);
+    if (!Number.isInteger(qtd) || qtd <= 0) {
+      setError("A quantidade precisa ser um inteiro maior que zero.");
+      return;
+    }
+
+    setSalvando(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const resultado = await itens.atualizarQuantidade(vendaId, itemEditando.id, qtd);
+      setSuccess(resultado.message);
+      setItemEditando(null);
+      await carregarItens(vendaId);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function onRemover(item: ItemVendaDTO) {
+    if (vendaId === null) return;
+    if (!confirm(`Remover o item #${item.id} desta venda?`)) return;
+
+    setError(null);
+    setSuccess(null);
+    try {
+      await itens.remover(vendaId, item.id);
+      setSuccess("Item removido da venda.");
+      await carregarItens(vendaId);
     } catch (err) {
       setError(getErrorMessage(err));
     }
   }
 
-  async function onUpdateQty(item: ItemVendaDTO) {
-    if (vendaId == null) return;
-    const next = prompt("Nova quantidade", String(item.quantidade));
-    if (next == null) return;
-    try {
-      const result = await service.atualizarQuantidade(vendaId, item.id, Number(next));
-      setSuccess(result.message);
-      await load(vendaId);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  }
+  /* ========== Derivados ========== */
 
-  async function onRemove(item: ItemVendaDTO) {
-    if (vendaId == null) return;
-    if (!confirm(`Remover item #${item.id}?`)) return;
-    try {
-      await service.remover(vendaId, item.id);
-      setSuccess("Item removido.");
-      await load(vendaId);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  }
+  const nomeProduto = (produtoId: number): string =>
+    indiceProdutos.get(produtoId)?.nome ?? `Produto #${produtoId}`;
 
-  async function onAprovar(item: ItemVendaDTO) {
-    if (vendaId == null) return;
-    try {
-      const result = await service.aprovarItem(vendaId, item.id);
-      setSuccess(result.message);
-      await load(vendaId);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  }
+  const pendentes = linhas.filter((item) => item.exigeAvaliacao && !item.aprovadoFarmaceutico).length;
 
-  async function onRecusar(item: ItemVendaDTO) {
-    if (vendaId == null) return;
-    try {
-      const result = await service.recusarItem(vendaId, item.id);
-      setSuccess(result.message);
-      await load(vendaId);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  }
+  const resultadosBusca = useMemo(() => {
+    const termo = buscaProduto.trim().toLowerCase();
+    const base = termo === "" ? catalogo : catalogo.filter((produto) => combina(produto, termo));
+    return base.slice(0, 6);
+  }, [catalogo, buscaProduto]);
 
-  async function onAvaliar(aprovado: boolean) {
-    if (vendaId == null) return;
-    try {
-      const result = await service.avaliarVenda(vendaId, aprovado);
-      setSuccess(result.message);
-      await load(vendaId);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  }
+  const podeAlterarItens = vendaSelecionada?.status === "EM_ANDAMENTO";
+
+  const opcoesVenda = listaVendas.map((venda) => ({
+    value: String(venda.id ?? ""),
+    label: `Venda #${venda.id}`,
+    detalhe: `${dataHora(venda.dataHora)} · ${statusVendaLabel[venda.status]}`,
+  }));
 
   return (
     <div>
-      <PageHeader description="Informe um vendaId existente (seed 1–5) para gerenciar os itens." />
+      <PageHeader
+        description={
+          ehCaixa
+            ? "Confira os itens e o total das vendas antes de receber o pagamento."
+            : "Selecione uma venda em aberto e monte a cesta do cliente."
+        }
+      />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Venda" value={vendaId ?? "—"} icon={<IconCart />} tone="green" />
-        <StatCard label="Itens" value={rows.length} icon={<IconCart />} tone="mint" />
         <StatCard
-          label="Pendentes"
-          value={rows.filter((i) => i.exigeAvaliacao && !i.aprovadoFarmaceutico).length}
+          label="Venda selecionada"
+          value={vendaId != null ? `#${vendaId}` : "—"}
           icon={<IconCart />}
-          tone="red"
+          tone="green"
         />
-        <StatCard
-          label="Total"
-          value={
-            total != null
-              ? Number(total).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-              : "—"
-          }
-          icon={<IconPlus />}
-          tone="rose"
-        />
+        <StatCard label="Itens na venda" value={linhas.length} icon={<IconPills />} tone="mint" />
+        <StatCard label="Aguardando avaliação" value={pendentes} icon={<IconAlert />} tone="red" />
+        <StatCard label="Total" value={moeda(total)} icon={<IconTrend />} tone="rose" />
       </div>
 
-      <form
-        onSubmit={applyVendaId}
-        className="mb-4 flex flex-col gap-3 rounded-[25px] bg-white p-5 shadow-[0_8px_30px_rgba(26,46,37,0.04)] sm:flex-row sm:items-end"
-      >
-        <div className="flex-1">
-          <Input
-            label="ID da venda"
-            type="number"
-            min="1"
-            value={vendaIdInput}
-            onChange={(e) => setVendaIdInput(e.target.value)}
-          />
-        </div>
-        <Button type="submit" variant="secondary">
-          Carregar
-        </Button>
-        <div className="flex flex-wrap gap-1.5">
-          {SEED_VENDAS.map((id) => (
+      <Card className="mb-4">
+        <CardHeader
+          titulo="Vendas"
+          descricao="Escolha a venda que você vai atender."
+          acao={
+            <Button type="button" variant="secondary" size="sm" onClick={() => void carregarVendas()}>
+              <IconRefresh size={15} /> Atualizar
+            </Button>
+          }
+        />
+
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {(["TODAS", ...STATUS_ATENDIMENTO] as const).map((status) => (
             <Button
-              key={id}
+              key={status}
               type="button"
-              variant={vendaId === id ? "success" : "ghost"}
-              onClick={() => {
-                setVendaIdInput(String(id));
-                void load(id);
-              }}
+              variant={statusFiltro === status ? "success" : "ghost"}
+              onClick={() => setStatusFiltro(status)}
             >
-              #{id}
+              {status === "TODAS" ? "Todas" : statusVendaLabel[status]}
             </Button>
           ))}
         </div>
-      </form>
 
-      {vendaId != null ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[25px] bg-white px-5 py-4 shadow-[0_8px_30px_rgba(26,46,37,0.04)]">
-          <p className="text-sm font-semibold text-brand-green">
-            Venda #{vendaId}
-            {total != null
-              ? ` · Total ${Number(total).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
-              : ""}
+        {carregandoVendas ? (
+          <p className="text-sm text-ink-muted">Carregando vendas...</p>
+        ) : listaVendas.length === 0 ? (
+          <p className="text-sm text-ink-muted">
+            Nenhuma venda com esse status. Como o backend ainda não implementa a abertura de vendas
+            (<code>POST /api/vendas</code>), elas precisam existir no banco para aparecer aqui.
           </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="success" onClick={() => void onAvaliar(true)}>
-              Avaliar: aprovar
-            </Button>
-            <Button type="button" variant="danger" onClick={() => void onAvaliar(false)}>
-              Avaliar: recusar
-            </Button>
-          </div>
-        </div>
-      ) : null}
+        ) : (
+          <Select
+            label="Venda em atendimento"
+            options={opcoesVenda}
+            value={vendaId != null ? String(vendaId) : ""}
+            onChange={(valor) => setVendaId(Number(valor))}
+          />
+        )}
+      </Card>
 
       {error ? (
         <div className="mb-4">
@@ -232,123 +321,233 @@ export function ItensVendaPage() {
         </div>
       ) : null}
 
-      {vendaId != null ? (
-        <>
-          <form
-            onSubmit={onAdd}
-            className="mb-4 grid gap-3 rounded-[25px] bg-white p-5 shadow-[0_8px_30px_rgba(26,46,37,0.04)] sm:grid-cols-4"
-          >
-            <Input
-              label="Produto ID"
-              type="number"
-              required
-              value={produtoId}
-              onChange={(e) => setProdutoId(e.target.value)}
-            />
-            <Input
-              label="Quantidade"
-              type="number"
-              min="1"
-              required
-              value={quantidade}
-              onChange={(e) => setQuantidade(e.target.value)}
-            />
-            <div className="flex items-end sm:col-span-2">
-              <Button type="submit" className="w-full sm:w-auto">
-                Adicionar item
-              </Button>
-            </div>
-          </form>
+      {vendaSelecionada ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[25px] bg-surface px-5 py-4 shadow-card ring-1 ring-line/60">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-semibold text-brand-green">Venda #{vendaSelecionada.id}</p>
+            <Badge tone={statusTone(vendaSelecionada.status)}>
+              {statusVendaLabel[vendaSelecionada.status]}
+            </Badge>
+            <span className="text-sm text-ink-muted">{dataHora(vendaSelecionada.dataHora)}</span>
+          </div>
+          <p className="text-sm font-semibold text-brand-red">Total {moeda(total)}</p>
+        </div>
+      ) : null}
+
+      {vendaId !== null && podeAlterarItens ? (
+        <Card className="mb-4">
+          <CardHeader titulo="Adicionar produto" descricao="Só aparecem itens vendáveis: ativos, na validade e com estoque." />
 
           <form
             className="mb-4 flex flex-col gap-2 sm:flex-row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (vendaId != null) void load(vendaId, busca);
+            onSubmit={(event: FormEvent) => {
+              event.preventDefault();
+              void carregarCatalogo(buscaProduto);
             }}
           >
             <div className="flex-1">
               <Input
-                placeholder="Filtrar itens (busca no produto)"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar produto por nome, princípio ativo ou código..."
+                icone={<IconSearch size={17} />}
+                value={buscaProduto}
+                onChange={(event) => setBuscaProduto(event.target.value)}
               />
             </div>
             <Button type="submit" variant="secondary">
-              Filtrar
+              Buscar
             </Button>
           </form>
-        </>
+
+          {resultadosBusca.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              Nenhum produto vendável encontrado para esse termo.
+            </p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {resultadosBusca.map((produto) => {
+                const ativo = produtoSelecionado?.id === produto.id;
+                return (
+                  <button
+                    key={produto.id}
+                    type="button"
+                    onClick={() => setProdutoSelecionado(produto)}
+                    className={`rounded-2xl px-4 py-3 text-left transition ${
+                      ativo
+                        ? "bg-brand-green-soft ring-2 ring-brand-green/40"
+                        : "bg-canvas hover:bg-brand-green-soft"
+                    }`}
+                  >
+                    <p className="truncate text-sm font-semibold text-ink">{produto.nome}</p>
+                    <p className="truncate text-xs text-ink-muted">
+                      {moeda(produto.preco)} · {produto.quantidadeEstoque} un. ·{" "}
+                      {produto.classificacao}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={onAdicionar}>
+            <div className="sm:w-40">
+              <Input
+                label="Quantidade"
+                type="number"
+                min="1"
+                step="1"
+                required
+                value={quantidade}
+                onChange={(event) => setQuantidade(event.target.value)}
+              />
+            </div>
+            <Button type="submit" disabled={!produtoSelecionado || salvando}>
+              {salvando
+                ? "Adicionando..."
+                : produtoSelecionado
+                  ? `Adicionar ${produtoSelecionado.nome}`
+                  : "Selecione um produto"}
+            </Button>
+          </form>
+        </Card>
       ) : null}
 
-      {loading ? (
-        <LoadingState />
+      {vendaSelecionada && !podeAlterarItens ? (
+        <div className="mb-4">
+          <Alert tone="info">
+            Esta venda está em “{statusVendaLabel[vendaSelecionada.status]}”: os itens ficam somente
+            para consulta.
+          </Alert>
+        </div>
+      ) : null}
+
+      {carregandoItens ? (
+        <LoadingState label="Carregando itens da venda..." />
       ) : (
         <Table
-          rows={rows}
-          rowKey={(i) => i.id}
-          emptyMessage="Nenhum item nesta venda."
+          rows={linhas}
+          rowKey={(item) => item.id}
+          empty={
+            <EmptyState
+              icone={<IconInbox size={22} />}
+              titulo={vendaId === null ? "Nenhuma venda selecionada" : "Venda sem itens"}
+              descricao={
+                vendaId === null
+                  ? "Escolha uma venda no seletor acima para ver e montar a cesta."
+                  : podeAlterarItens
+                    ? "Busque um produto acima e adicione o primeiro item desta venda."
+                    : "Esta venda não tem itens registrados."
+              }
+            />
+          }
+          footer={linhas.length > 0 ? `Total da venda: ${moeda(total)}` : undefined}
           columns={[
-            { key: "id", header: "ID", render: (i) => i.id },
-            { key: "produto", header: "Produto", render: (i) => i.produtoId },
-            { key: "qtd", header: "Qtd", render: (i) => i.quantidade },
+            { key: "id", header: "ID", render: (item) => item.id },
             {
-              key: "unit",
-              header: "Unitário",
-              render: (i) =>
-                Number(i.precoUnitario).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                }),
+              key: "produto",
+              header: "Produto",
+              render: (item) => {
+                const produto = indiceProdutos.get(item.produtoId);
+                return (
+                  <div>
+                    <p className="font-semibold">{nomeProduto(item.produtoId)}</p>
+                    <p className="text-xs text-ink-muted">
+                      {produto ? produto.codigoBarras : `Produto #${item.produtoId}`}
+                    </p>
+                  </div>
+                );
+              },
             },
-            {
-              key: "sub",
-              header: "Subtotal",
-              render: (i) =>
-                Number(i.precoSubtotal).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                }),
-            },
+            { key: "qtd", header: "Qtd", render: (item) => item.quantidade },
+            { key: "unit", header: "Unitário", render: (item) => moeda(item.precoUnitario) },
+            { key: "sub", header: "Subtotal", render: (item) => moeda(item.precoSubtotal) },
             {
               key: "aval",
               header: "Avaliação",
-              render: (i) =>
-                i.exigeAvaliacao ? (
-                  <Badge tone={i.aprovadoFarmaceutico ? "green" : "amber"}>
-                    {i.aprovadoFarmaceutico ? "Aprovado" : "Pendente"}
+              render: (item) =>
+                item.exigeAvaliacao ? (
+                  <Badge tone={item.aprovadoFarmaceutico ? "green" : "amber"}>
+                    {item.aprovadoFarmaceutico ? "Aprovado" : "Pendente"}
                   </Badge>
                 ) : (
                   <Badge>Livre</Badge>
                 ),
             },
-            {
-              key: "acoes",
-              header: "Ações",
-              render: (i) => (
-                <div className="flex flex-wrap gap-1.5">
-                  <Button type="button" variant="secondary" onClick={() => void onUpdateQty(i)}>
-                    Qtd
-                  </Button>
-                  {i.exigeAvaliacao ? (
-                    <>
-                      <Button type="button" variant="success" onClick={() => void onAprovar(i)}>
-                        Aprovar
-                      </Button>
-                      <Button type="button" variant="danger" onClick={() => void onRecusar(i)}>
-                        Recusar
-                      </Button>
-                    </>
-                  ) : null}
-                  <Button type="button" variant="danger" onClick={() => void onRemove(i)}>
-                    Remover
-                  </Button>
-                </div>
-              ),
-            },
+            ...(podeAlterarItens
+              ? [
+                  {
+                    key: "acoes",
+                    header: "Ações",
+                    fim: true,
+                    className: "min-w-24",
+                    render: (item: ItemVendaDTO) => (
+                      <RowActions>
+                        <IconButton
+                          label="Alterar quantidade"
+                          onClick={() => {
+                            setItemEditando(item);
+                            setNovaQuantidade(String(item.quantidade));
+                          }}
+                        >
+                          <IconHash size={17} />
+                        </IconButton>
+                        <IconButton
+                          label="Remover item"
+                          tone="danger"
+                          onClick={() => void onRemover(item)}
+                        >
+                          <IconTrash size={17} />
+                        </IconButton>
+                      </RowActions>
+                    ),
+                  },
+                ]
+              : []),
           ]}
         />
       )}
+
+      <Modal
+        open={itemEditando !== null}
+        title={itemEditando ? `Quantidade · item #${itemEditando.id}` : "Quantidade"}
+        onClose={() => setItemEditando(null)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setItemEditando(null)}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="quantidade-form" disabled={salvando}>
+              {salvando ? "Salvando..." : "Salvar"}
+            </Button>
+          </>
+        }
+      >
+        <form id="quantidade-form" className="space-y-3" onSubmit={onAtualizarQuantidade}>
+          {itemEditando ? (
+            <p className="text-sm text-ink-muted">
+              {nomeProduto(itemEditando.produtoId)} · unitário {moeda(itemEditando.precoUnitario)}
+            </p>
+          ) : null}
+          <Input
+            label="Nova quantidade"
+            type="number"
+            min="1"
+            step="1"
+            required
+            value={novaQuantidade}
+            onChange={(event) => setNovaQuantidade(event.target.value)}
+          />
+          <p className="text-xs text-ink-muted">
+            Item controlado que já estava aprovado volta para “pendente” após a alteração.
+          </p>
+        </form>
+      </Modal>
     </div>
   );
+}
+
+function combina(produto: ProdutoDTO, termo: string): boolean {
+  return [produto.nome, produto.principioAtivo, produto.codigoBarras, produto.categoria]
+    .join(" ")
+    .toLowerCase()
+    .includes(termo);
 }

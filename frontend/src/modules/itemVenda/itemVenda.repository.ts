@@ -1,14 +1,25 @@
 import type { InterfaceHttpClient } from "../../shared/http/HttpClient";
-import type { ItemVendaDTO, MessageResponse } from "../../shared/types/api";
+import type { ItemVendaDTO, MessageResponse, TotalVendaDTO } from "../../shared/types/api";
 
+/**
+ * Acesso HTTP ao módulo ItemVenda da API.
+ *
+ * Listar/alterar itens exige ATENDENTE ou CAIXA; aprovar/recusar exige
+ * FARMACEUTICO. A rota `PATCH /itens-venda/venda/:id/avaliar` não é usada porque
+ * o controller lista os itens antes de avaliar — precisaria dos dois perfis ao
+ * mesmo tempo e recusa qualquer usuário (ver ERROS_BACKEND.md).
+ */
 export interface InterfaceItemVendaRepository {
   listar(vendaId: number, busca?: string): Promise<ItemVendaDTO[]>;
   buscarPorId(vendaId: number, id: number): Promise<ItemVendaDTO>;
-  adicionar(vendaId: number, produtoId: number, quantidade: number): Promise<MessageResponse & { id?: number }>;
+  adicionar(
+    vendaId: number,
+    produtoId: number,
+    quantidade: number,
+  ): Promise<MessageResponse & { id?: number }>;
   atualizarQuantidade(vendaId: number, id: number, quantidade: number): Promise<MessageResponse>;
   remover(vendaId: number, id: number): Promise<void>;
-  calcularTotal(vendaId: number): Promise<{ vendaId: number; total: number }>;
-  avaliarVenda(vendaId: number, aprovado: boolean): Promise<MessageResponse>;
+  calcularTotal(vendaId: number): Promise<TotalVendaDTO>;
   aprovarItem(vendaId: number, id: number): Promise<MessageResponse>;
   recusarItem(vendaId: number, id: number): Promise<MessageResponse>;
 }
@@ -40,12 +51,8 @@ export class ItemVendaRepository implements InterfaceItemVendaRepository {
     return this.http.delete(`/itens-venda/venda/${vendaId}/item/${id}`);
   }
 
-  calcularTotal(vendaId: number): Promise<{ vendaId: number; total: number }> {
+  calcularTotal(vendaId: number): Promise<TotalVendaDTO> {
     return this.http.get(`/itens-venda/venda/${vendaId}/total`);
-  }
-
-  avaliarVenda(vendaId: number, aprovado: boolean): Promise<MessageResponse> {
-    return this.http.patch(`/itens-venda/venda/${vendaId}/avaliar`, { aprovado });
   }
 
   aprovarItem(vendaId: number, id: number): Promise<MessageResponse> {

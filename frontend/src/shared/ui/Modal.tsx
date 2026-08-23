@@ -1,35 +1,85 @@
-import type { ReactNode } from "react";
-import { Button } from "./Button";
+import { useEffect, type ReactNode } from "react";
+import { IconButton } from "./Button";
 import { IconClose } from "./icons";
 
 type Props = {
   open: boolean;
   title: string;
+  descricao?: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** `lg` para formulários de duas colunas, `sm` para confirmações curtas. */
+  tamanho?: "sm" | "md" | "lg";
 };
 
-export function Modal({ open, title, onClose, children, footer }: Props) {
+const larguras = {
+  sm: "max-w-md",
+  md: "max-w-2xl",
+  lg: "max-w-3xl",
+} as const;
+
+export function Modal({
+  open,
+  title,
+  descricao,
+  onClose,
+  children,
+  footer,
+  tamanho = "md",
+}: Props) {
+  // Esc fecha e o fundo para de rolar enquanto o diálogo está aberto.
+  useEffect(() => {
+    if (!open) return;
+
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key === "Escape") onClose();
+    }
+
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", aoTeclar);
+
+    return () => {
+      document.body.style.overflow = overflowAnterior;
+      document.removeEventListener("keydown", aoTeclar);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-ink/35"
+        data-fundo-modal
+        className="absolute inset-0 bg-overlay backdrop-blur-[2px]"
         aria-label="Fechar"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[25px] bg-white shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-5">
-          <h2 className="text-xl font-semibold text-ink">{title}</h2>
-          <Button variant="ghost" type="button" onClick={onClose} aria-label="Fechar modal" className="px-3">
-            <IconClose />
-          </Button>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[28px] bg-surface shadow-pop ring-1 ring-line animate-surgir sm:rounded-[25px] ${larguras[tamanho]}`}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight text-ink">{title}</h2>
+            {descricao ? <p className="mt-1 text-sm text-ink-muted">{descricao}</p> : null}
+          </div>
+          <IconButton label="Fechar modal" onClick={onClose}>
+            <IconClose size={18} />
+          </IconButton>
         </div>
-        <div className="overflow-y-auto px-6 py-2">{children}</div>
-        {footer ? <div className="flex justify-end gap-2 px-6 py-5">{footer}</div> : null}
+
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
+
+        {footer ? (
+          <div className="flex justify-end gap-2 border-t border-line bg-surface-muted/60 px-6 py-4">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );

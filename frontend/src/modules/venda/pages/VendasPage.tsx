@@ -1,68 +1,152 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../shared/auth/AuthContext";
+import { podeGerenciarUsuarios } from "../../../shared/auth/permissoes";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
-import type { StatusVenda, VendaDTO } from "../../../shared/types/api";
+import {
+  STATUS_VENDA,
+  statusVendaLabel,
+  type StatusVenda,
+  type UsuarioDTO,
+  type VendaDTO,
+} from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
-import { Alert, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
+import { Button } from "../../../shared/ui/Button";
+import { dataHora } from "../../../shared/ui/format";
+import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
+import { StatCard } from "../../../shared/ui/StatCard";
 import { Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
+import { IconCart, IconClipboard, IconRefresh, IconShield, IconTrend } from "../../../shared/ui/icons";
+import { UsuarioRepository } from "../../usuario/usuario.repository";
+import { UsuarioService } from "../../usuario/usuario.service";
 import { VendaRepository } from "../venda.repository";
 import { VendaService } from "../venda.service";
 
-const statusLabel: Record<StatusVenda, string> = {
-  EM_ANDAMENTO: "Em aberto",
-  EM_AVALIACAO: "Em avaliação",
-  AGUARDANDO_PAGAMENTO: "Aguardando pagamento",
-  FINALIZADA: "Finalizada",
-  CANCELADA: "Cancelada",
-};
+function isStatusVenda(valor: string | null): valor is StatusVenda {
+  return Boolean(valor && (STATUS_VENDA as readonly string[]).includes(valor));
+}
 
-function isStatusVenda(value: string | null): value is StatusVenda {
-  return Boolean(value && value in statusLabel);
+function statusTone(status: StatusVenda) {
+  if (status === "EM_AVALIACAO") return "amber" as const;
+  if (status === "CANCELADA") return "red" as const;
+  if (status === "FINALIZADA") return "neutral" as const;
+  return "green" as const;
 }
 
 export function VendasPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const statusParam = params.get("status");
   const statusFiltro = isStatusVenda(statusParam) ? statusParam : undefined;
-  usePageTitle(statusFiltro ? `Vendas · ${statusLabel[statusFiltro]}` : "Vendas");
-  const { http } = useAuth();
-  const service = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
+  usePageTitle(statusFiltro ? `Vendas · ${statusVendaLabel[statusFiltro]}` : "Vendas");
+
+  const { http, usuario } = useAuth();
+  const vendas = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
+  const usuarios = useMemo(() => new UsuarioService(new UsuarioRepository(http)), [http]);
+  const listaUsuariosDisponivel = podeGerenciarUsuarios(usuario?.perfil);
 
   const [rows, setRows] = useState<VendaDTO[]>([]);
+  const [equipe, setEquipe] = useState<UsuarioDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let alive = true;
+  const carregar = useCallback(async () => {
     setLoading(true);
     setError(null);
-    service
-      .listar(statusFiltro)
-      .then((vendas) => {
-        if (alive) setRows(vendas);
+    try {
+      setRows(await vendas.listar(statusFiltro));
+    } catch (err) {
+      setError(getErrorMessage(err));
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [vendas, statusFiltro]);
+
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
+  useEffect(() => {
+    if (!listaUsuariosDisponivel) return;
+    let ativo = true;
+    usuarios
+      .listar("")
+      .then((lista) => {
+        if (ativo) setEquipe(lista);
       })
-      .catch((err: unknown) => {
-        if (alive) setError(getErrorMessage(err));
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+      .catch(() => {
+        if (ativo) setEquipe([]);
       });
     return () => {
-      alive = false;
+      ativo = false;
     };
-  }, [service, statusFiltro]);
+  }, [usuarios, listaUsuariosDisponivel]);
+
+  function nomeDe(id: number | null): string {
+    if (id == null) return "—";
+    const encontrado = equipe.find((membro) => membro.id === id);
+    return encontrado ? encontrado.nome : `#${id}`;
+  }
+
+  function aplicarStatus(status: StatusVenda | undefined) {
+    if (status) setParams({ status });
+    else setParams({});
+  }
+
+  const contar = (status: StatusVenda) => rows.filter((venda) => venda.status === status).length;
 
   return (
     <div>
       <PageHeader
         description={
           statusFiltro
-            ? `Listando vendas com status “${statusLabel[statusFiltro]}”.`
-            : "Todas as vendas registradas."
+            ? `Listando vendas com status “${statusVendaLabel[statusFiltro]}”.`
+            : "Todas as vendas registradas no sistema."
+        }
+        actions={
+          <Button type="button" variant="secondary" onClick={() => void carregar()}>
+            <IconRefresh size={16} /> Atualizar
+          </Button>
         }
       />
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Listadas" value={rows.length} icon={<IconCart />} tone="green" />
+        <StatCard label="Em aberto" value={contar("EM_ANDAMENTO")} icon={<IconTrend />} tone="mint" />
+        <StatCard
+          label="Em avaliação"
+          value={contar("EM_AVALIACAO")}
+          icon={<IconClipboard />}
+          tone="red"
+        />
+        <StatCard
+          label="Finalizadas"
+          value={contar("FINALIZADA")}
+          icon={<IconShield />}
+          tone="rose"
+        />
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        <Button
+          type="button"
+          variant={statusFiltro ? "ghost" : "success"}
+          onClick={() => aplicarStatus(undefined)}
+        >
+          Todas
+        </Button>
+        {STATUS_VENDA.map((status) => (
+          <Button
+            key={status}
+            type="button"
+            variant={statusFiltro === status ? "success" : "ghost"}
+            onClick={() => aplicarStatus(status)}
+          >
+            {statusVendaLabel[status]}
+          </Button>
+        ))}
+      </div>
 
       {error ? (
         <div className="mb-4">
@@ -76,34 +160,43 @@ export function VendasPage() {
         <Table
           rows={rows}
           rowKey={(venda) => venda.id ?? 0}
-          emptyMessage={
-            statusFiltro
-              ? `Nenhuma venda ${statusLabel[statusFiltro].toLowerCase()}.`
-              : "Nenhuma venda encontrada."
+          empty={
+            <EmptyState
+              icone={<IconCart size={22} />}
+              titulo={
+                statusFiltro
+                  ? `Nenhuma venda em “${statusVendaLabel[statusFiltro]}”`
+                  : "Nenhuma venda registrada"
+              }
+              descricao={
+                statusFiltro
+                  ? "Troque o filtro acima para ver as vendas em outros estágios."
+                  : "As vendas aparecem aqui assim que forem abertas no atendimento."
+              }
+            />
           }
           columns={[
             { key: "id", header: "ID", render: (venda) => venda.id ?? "—" },
-            {
-              key: "dataHora",
-              header: "Data",
-              render: (venda) =>
-                venda.dataHora ? new Date(venda.dataHora).toLocaleString("pt-BR") : "—",
-            },
+            { key: "dataHora", header: "Data", render: (venda) => dataHora(venda.dataHora) },
             {
               key: "status",
               header: "Status",
               render: (venda) => (
-                <Badge tone={venda.status === "EM_AVALIACAO" ? "amber" : "green"}>
-                  {statusLabel[venda.status]}
+                <Badge dot tone={statusTone(venda.status)}>
+                  {statusVendaLabel[venda.status]}
                 </Badge>
               ),
             },
-            { key: "atendente", header: "Atendente", render: (venda) => venda.idAtendente ?? "—" },
-            { key: "caixa", header: "Caixa", render: (venda) => venda.idCaixa ?? "—" },
+            {
+              key: "atendente",
+              header: "Atendente",
+              render: (venda) => nomeDe(venda.idAtendente),
+            },
+            { key: "caixa", header: "Caixa", render: (venda) => nomeDe(venda.idCaixa) },
             {
               key: "farmaceutico",
               header: "Farmacêutico",
-              render: (venda) => venda.idFarmaceutico ?? "—",
+              render: (venda) => nomeDe(venda.idFarmaceutico),
             },
           ]}
         />

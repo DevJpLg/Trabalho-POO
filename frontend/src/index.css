@@ -1,18 +1,117 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens da Farmácia Bairro Saúde.
+ *
+ * O sistema é claro, sem tema alternativo. As cores da marca (vermelho e verde)
+ * ficam separadas das cores semânticas de superfície e texto; por isso os
+ * componentes usam `bg-surface`, `text-ink`, `border-line`... e nunca `bg-white`
+ * ou hex solto — o ajuste de uma cor acontece num lugar só.
+ */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* ===== marca ===== */
   --color-brand-red: #e31c24;
   --color-brand-red-dark: #c4181f;
   --color-brand-green: #16a34a;
   --color-brand-green-dark: #15803d;
-  --color-brand-green-soft: #e7f8ee;
-  --color-brand-red-soft: #fdecec;
+
+  /* ===== superfícies e texto (tema claro) ===== */
   --color-canvas: #f4f7f6;
   --color-surface: #ffffff;
+  --color-surface-muted: #f4f7f6;
+  --color-surface-hover: #eef4f1;
   --color-ink: #1a2e25;
   --color-ink-muted: #718e7c;
   --color-line: #e6eeea;
+  --color-overlay: rgb(26 46 37 / 0.35);
+
+  /* ===== tons de apoio ===== */
+  --color-brand-green-soft: #e7f8ee;
+  --color-brand-red-soft: #fdecec;
+  --color-mint-soft: #e8f8f4;
+  --color-rose-soft: #fff1f1;
+  --color-amber-soft: #fef4e2;
+  --color-amber-ink: #b45309;
+
+  /* ===== gráficos ===== */
+  --color-chart-primary: #16a34a;
+  --color-chart-secondary: #86efac;
+  --color-chart-danger: #e31c24;
+  --color-chart-grid: #e6eeea;
+
+  /* ===== animações ===== */
+  --animate-surgir: surgir 0.28s ease-out both;
+  --animate-pulsar: pulsar 1.4s ease-in-out infinite;
+  --animate-crescer: crescer 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-tracar: tracar 0.9s ease-out both;
+}
+
+/*
+ * Elevação. Fica fora do `@theme` de propósito: dentro dele o Tailwind embutiria
+ * o valor literal em cada utilidade, e ajustar a sombra viraria caça ao hex.
+ */
+:root {
+  --sombra-card: 0 8px 30px rgb(26 46 37 / 0.05);
+  --sombra-card-hover: 0 14px 38px rgb(26 46 37 / 0.1);
+  --sombra-pop: 0 16px 40px rgb(26 46 37 / 0.14);
+  --sombra-brand: 0 14px 34px rgb(227 28 36 / 0.26);
+}
+
+@utility shadow-card {
+  box-shadow: var(--sombra-card);
+}
+
+@utility shadow-card-hover {
+  box-shadow: var(--sombra-card-hover);
+}
+
+@utility shadow-pop {
+  box-shadow: var(--sombra-pop);
+}
+
+@utility shadow-brand {
+  box-shadow: var(--sombra-brand);
+}
+
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes crescer {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes tracar {
+  from {
+    stroke-dashoffset: var(--comprimento, 1000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pulsar {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
 }
 
 html,
@@ -21,17 +120,46 @@ body,
   min-height: 100%;
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-ink);
   background: var(--color-canvas);
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-brand-green) 22%, white);
+  background: color-mix(in srgb, var(--color-brand-green) 24%, transparent);
   color: var(--color-ink);
+}
+
+/* Barra de rolagem discreta, seguindo o tema. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-line);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-ink-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
