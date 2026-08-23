@@ -33,7 +33,7 @@ export type ProdutoDTO = {
   descricao: string | null;
   principioAtivo: string;
   concentracao: string | null;
-  formulaFarmaceutica: string | null;
+  formaFarmaceutica: string | null;
   fabricante: string;
   numeroRegAnvisa: string | null;
   tarja: string | null;
@@ -62,7 +62,7 @@ export type ProdutoInput = {
   preco: number;
   descricao?: string | null;
   concentracao?: string | null;
-  formulaFarmaceutica?: string | null;
+  formaFarmaceutica?: string | null;
   numeroRegAnvisa?: string | null;
   tarja?: string | null;
   classificacao?: Classificacao;

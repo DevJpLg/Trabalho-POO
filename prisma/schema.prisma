@@ -67,7 +67,7 @@ model Produto {
   descricao           String?       @db.Text
   principioAtivo      String        @db.VarChar(200)
   concentracao        String?       @db.VarChar(50)
-  formulaFarmaceutica String?       @db.VarChar(100)
+  formaFarmaceutica String?       @db.VarChar(100)
   fabricante          String        @db.VarChar(200)
   numeroRegAnvisa     String?       @db.VarChar(30)
   tarja               String?       @db.VarChar(30)

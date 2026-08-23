@@ -1,6 +1,6 @@
-import Produto, { Classificacao } from "./index";
+import Produto, { Classificacao, DadosProduto } from "./index";
 import { prisma } from "../../shared/database";
-import type { PrismaClient, Produto as ProdutoModel } from "../../generated/prisma/client";
+import type { PrismaClient } from "../../generated/prisma/client";
 
 export default interface InterfaceProdutoRepository {
     cadastrarProduto(produto: Produto): Promise<boolean>;
@@ -18,6 +18,7 @@ export default interface InterfaceProdutoRepository {
     realizarBaixa(id: number, qtd: number): Promise<boolean>;
     alterarValidade(produto: Produto, novaData: Date): Promise<boolean>;
     bloquearProduto(produto: Produto): Promise<boolean>;
+    desbloquearProduto(produto: Produto): Promise<boolean>;
 }
 
 export class ProdutoRepository implements InterfaceProdutoRepository {
@@ -28,35 +29,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
-    private rebuildProduto(rows: ProdutoModel): Produto {
-        return new Produto(rows.id, {
-            nome: rows.nome,
-            codigoBarras: rows.codigoBarras,
-            descricao: rows.descricao,
-            principioAtivo: rows.principioAtivo,
-            concentracao: rows.concentracao,
-            formulaFarmaceutica: rows.formulaFarmaceutica,
-            fabricante: rows.fabricante,
-            numeroRegAnvisa: rows.numeroRegAnvisa,
-            tarja: rows.tarja,
-            categoria: rows.categoria,
-            classificacao: rows.classificacao as Classificacao,
-            quantidadeEstoque: rows.quantidadeEstoque,
-            localEstoque: rows.localEstoque,
-            validade: rows.validade,
-            classeControle: rows.classeControle,
-            retencaoReceita: rows.retencaoReceita,
-            validadeReceita: rows.validadeReceita,
-            generico: rows.generico,
-            lote: rows.lote,
-            preco: Number(rows.preco),
-            dataFabricacao: rows.dataFabricacao,
-            quantidadeMaxima: rows.quantidadeMaxima,
-            isActive: rows.isActive,
-        });
-    }
-
-
+    /* ! ========== Cadastrar Produto ========== */
     public async cadastrarProduto(produto: Produto): Promise<boolean> {
         let retorno = false;
 
@@ -67,7 +40,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
                 descricao: produto.getDescricao(),
                 principioAtivo: produto.getPrincipioAtivo(),
                 concentracao: produto.getConcentracao(),
-                formulaFarmaceutica: produto.getFormulaFarmaceutica(),
+                formaFarmaceutica: produto.getFormaFarmaceutica(),
                 fabricante: produto.getFabricante(),
                 numeroRegAnvisa: produto.getNumeroRegAnvisa(),
                 tarja: produto.getTarja(),
@@ -95,6 +68,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
+    /* ! ========== Listar Produtos ========== */
     public async listarProdutos(busca: string): Promise<Produto[] | null> {
         const resultado = await this.prisma.produto.findMany({
             where: { OR: [
@@ -107,12 +81,38 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
         });
 
         if (resultado.length > 0) {
-            return resultado.map((rows) => this.rebuildProduto(rows));
+            return resultado.map((rows) => 
+                Produto.rebuildProduto(rows.id, {
+                    nome: rows.nome,
+                    codigoBarras: rows.codigoBarras,
+                    descricao: rows.descricao,
+                    principioAtivo: rows.principioAtivo,
+                    concentracao: rows.concentracao,
+                    formaFarmaceutica: rows.formaFarmaceutica,
+                    fabricante: rows.fabricante,
+                    numeroRegAnvisa: rows.numeroRegAnvisa,
+                    tarja: rows.tarja,
+                    categoria: rows.categoria,
+                    classificacao: rows.classificacao as Classificacao,
+                    quantidadeEstoque: rows.quantidadeEstoque,
+                    localEstoque: rows.localEstoque,
+                    validade: rows.validade,
+                    classeControle: rows.classeControle,
+                    retencaoReceita: rows.retencaoReceita,
+                    validadeReceita: rows.validadeReceita,
+                    generico: rows.generico,
+                    lote: rows.lote,
+                    preco: Number(rows.preco),
+                    dataFabricacao: rows.dataFabricacao,
+                    quantidadeMaxima: rows.quantidadeMaxima,
+                }, rows.isActive),
+            );
         }
         return null;
     }
 
 
+    /* ! ========== Buscar Produto ========== */
     public async buscarProduto(busca: string): Promise<Produto[] | null> {
         const resultado = await this.prisma.produto.findMany({
             where: { AND: [
@@ -130,33 +130,109 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
         });
 
         if (resultado.length > 0) {
-            return resultado.map((rows) => this.rebuildProduto(rows));
+            return resultado.map((rows) => 
+                Produto.rebuildProduto(rows.id, {
+                    nome: rows.nome,
+                    codigoBarras: rows.codigoBarras,
+                    descricao: rows.descricao,
+                    principioAtivo: rows.principioAtivo,
+                    concentracao: rows.concentracao,
+                    formaFarmaceutica: rows.formaFarmaceutica,
+                    fabricante: rows.fabricante,
+                    numeroRegAnvisa: rows.numeroRegAnvisa,
+                    tarja: rows.tarja,
+                    categoria: rows.categoria,
+                    classificacao: rows.classificacao as Classificacao,
+                    quantidadeEstoque: rows.quantidadeEstoque,
+                    localEstoque: rows.localEstoque,
+                    validade: rows.validade,
+                    classeControle: rows.classeControle,
+                    retencaoReceita: rows.retencaoReceita,
+                    validadeReceita: rows.validadeReceita,
+                    generico: rows.generico,
+                    lote: rows.lote,
+                    preco: Number(rows.preco),
+                    dataFabricacao: rows.dataFabricacao,
+                    quantidadeMaxima: rows.quantidadeMaxima,
+                }, rows.isActive),
+            );
         }
         return null;
     }
 
 
+    /* ! ========== Buscar Produto Por Id ========== */
     public async buscarProdutoPorId(id: number): Promise<Produto | null> {
         const resultado = await this.prisma.produto.findUnique({
             where: { id: id },
         });
+
         if (resultado !== null) {
-            return this.rebuildProduto(resultado);
+            return Produto.rebuildProduto(resultado.id, {
+                nome: resultado.nome,
+                codigoBarras: resultado.codigoBarras,
+                descricao: resultado.descricao,
+                principioAtivo: resultado.principioAtivo,
+                concentracao: resultado.concentracao,
+                formaFarmaceutica: resultado.formaFarmaceutica,
+                fabricante: resultado.fabricante,
+                numeroRegAnvisa: resultado.numeroRegAnvisa,
+                tarja: resultado.tarja,
+                categoria: resultado.categoria,
+                classificacao: resultado.classificacao as Classificacao,
+                quantidadeEstoque: resultado.quantidadeEstoque,
+                localEstoque: resultado.localEstoque,
+                validade: resultado.validade,
+                classeControle: resultado.classeControle,
+                retencaoReceita: resultado.retencaoReceita,
+                validadeReceita: resultado.validadeReceita,
+                generico: resultado.generico,
+                lote: resultado.lote,
+                preco: Number(resultado.preco),
+                dataFabricacao: resultado.dataFabricacao,
+                quantidadeMaxima: resultado.quantidadeMaxima,
+            }, resultado.isActive);
         }
         return null;
     }
 
 
+    /* ! ========== Buscar Produto Por Código de Barras ========== */
     public async buscarProdutoPorCodigoBarras(codigoBarras: string): Promise<Produto | null> {
         const resultado = await this.prisma.produto.findUnique({
             where: { codigoBarras: codigoBarras },
         });
         if (resultado !== null) {
-            return this.rebuildProduto(resultado);
+            return Produto.rebuildProduto(resultado.id, {
+                nome: resultado.nome,
+                codigoBarras: resultado.codigoBarras,
+                descricao: resultado.descricao,
+                principioAtivo: resultado.principioAtivo,
+                concentracao: resultado.concentracao,
+                formaFarmaceutica: resultado.formaFarmaceutica,
+                fabricante: resultado.fabricante,
+                numeroRegAnvisa: resultado.numeroRegAnvisa,
+                tarja: resultado.tarja,
+                categoria: resultado.categoria,
+                classificacao: resultado.classificacao as Classificacao,
+                quantidadeEstoque: resultado.quantidadeEstoque,
+                localEstoque: resultado.localEstoque,
+                validade: resultado.validade,
+                classeControle: resultado.classeControle,
+                retencaoReceita: resultado.retencaoReceita,
+                validadeReceita: resultado.validadeReceita,
+                generico: resultado.generico,
+                lote: resultado.lote,
+                preco: Number(resultado.preco),
+                dataFabricacao: resultado.dataFabricacao,
+                quantidadeMaxima: resultado.quantidadeMaxima,
+            }, resultado.isActive);
         }
         return null;
     }
 
+
+    /* ! ========== Buscar Quantidade de Estoque ========== */
     public async buscarQuantidadeEstoque(id: number): Promise<number | null> {
         const resultado = await this.prisma.produto.findFirst({
             where: { id: id },
@@ -168,6 +244,8 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
         return null;
     }
 
+
+    /* ! ========== Buscar Data de Vencimento ========== */
     public async buscarDataVencimento(id: number): Promise<Date | null> {
         const resultado = await this.prisma.produto.findUnique({
             where: { id: id },
@@ -179,6 +257,8 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
         return null;
     }
 
+
+    /* ! ========== Buscar Is Active Produto ========== */
     public async buscarIsActiveProduto(id: number): Promise<boolean | null> {
         const resultado = await this.prisma.produto.findUnique({
             where: { id: id },
@@ -190,6 +270,8 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
         return null;
     }
 
+
+    /* ! ========== Listar Produtos Por Validade ========== */
     public async listarProdutosPorValidade(dataLimite: Date): Promise<Produto[] | null> {
         const resultado = await this.prisma.produto.findMany({
             where: { validade: { lte: dataLimite } },
@@ -197,12 +279,38 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
         });
 
         if (resultado.length > 0) {
-            return resultado.map((rows) => this.rebuildProduto(rows));
+            return resultado.map((rows) => 
+                Produto.rebuildProduto(rows.id, {
+                    nome: rows.nome,
+                    codigoBarras: rows.codigoBarras,
+                    descricao: rows.descricao,
+                    principioAtivo: rows.principioAtivo,
+                    concentracao: rows.concentracao,
+                    formaFarmaceutica: rows.formaFarmaceutica,
+                    fabricante: rows.fabricante,
+                    numeroRegAnvisa: rows.numeroRegAnvisa,
+                    tarja: rows.tarja,
+                    categoria: rows.categoria,
+                    classificacao: rows.classificacao as Classificacao,
+                    quantidadeEstoque: rows.quantidadeEstoque,
+                    localEstoque: rows.localEstoque,
+                    validade: rows.validade,
+                    classeControle: rows.classeControle,
+                    retencaoReceita: rows.retencaoReceita,
+                    validadeReceita: rows.validadeReceita,
+                    generico: rows.generico,
+                    lote: rows.lote,
+                    preco: Number(rows.preco),
+                    dataFabricacao: rows.dataFabricacao,
+                    quantidadeMaxima: rows.quantidadeMaxima,
+                }, rows.isActive),
+            );
         }
         return null;
     }
 
 
+    /* ! ========== Editar Produto ========== */
     public async editarProduto(produto: Produto): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
             where: { id: produto.getId() },
@@ -212,7 +320,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
                 descricao: produto.getDescricao(),
                 principioAtivo: produto.getPrincipioAtivo(),
                 concentracao: produto.getConcentracao(),
-                formulaFarmaceutica: produto.getFormulaFarmaceutica(),
+                formaFarmaceutica: produto.getFormaFarmaceutica(),
                 fabricante: produto.getFabricante(),
                 numeroRegAnvisa: produto.getNumeroRegAnvisa(),
                 tarja: produto.getTarja(),
@@ -236,6 +344,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
+    /* ! ========== Deletar Produto ========== */
     public async deletarProduto(id: number): Promise<boolean> {
         const resultado = await this.prisma.produto.delete({
             where: { id: id },
@@ -244,6 +353,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
+    /* ! ========== Realizar Entrada ========== */
     public async realizarEntrada(produto: Produto, qtd: number): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
             where: { id: produto.getId() },
@@ -253,6 +363,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
+    /* ! ========== Realizar Baixa ========== */
     public async realizarBaixa(id: number, qtd: number): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
             where: { id: id},
@@ -262,6 +373,7 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
+    /* ! ========== Alterar Validade ========== */
     public async alterarValidade(produto: Produto, novaData: Date): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
             where: { id: produto.getId() },
@@ -271,10 +383,21 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
     }
 
 
+    /* ! ========== Bloquear Produto ========== */
     public async bloquearProduto(produto: Produto): Promise<boolean> {
         const resultado = await this.prisma.produto.update({
             where: { id: produto.getId() },
-            data: { isActive: !produto.getIsActive() },
+            data: { isActive: false },
+        });
+        return resultado ? true : false;
+    }
+
+
+    /* ! ========== Desbloquear Produto ========== */
+    public async desbloquearProduto(produto: Produto): Promise<boolean> {
+        const resultado = await this.prisma.produto.update({
+            where: { id: produto.getId() },
+            data: { isActive: true },
         });
         return resultado ? true : false;
     }

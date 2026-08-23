@@ -15,6 +15,7 @@ export function criarProdutoRoutes(controller: InterfaceProdutoController): Rout
     produtoRouter.patch("/:id/baixa", (req, res) => controller.realizarBaixa(req, res));
     produtoRouter.patch("/:id/validade", (req, res) => controller.alterarValidade(req, res));
     produtoRouter.patch("/:id/bloquear", (req, res) => controller.bloquearProduto(req, res));
+    produtoRouter.patch("/:id/desbloquear", (req, res) => controller.desbloquearProduto(req, res));
 
     return produtoRouter;
 }

@@ -70,7 +70,7 @@ CREATE TABLE produtos (
   descricao           TEXT           NULL,
   principioAtivo      VARCHAR(200)   NOT NULL,
   concentracao        VARCHAR(50)    NULL,
-  formulaFarmaceutica VARCHAR(100)   NULL,
+  formaFarmaceutica VARCHAR(100)   NULL,
   fabricante          VARCHAR(200)   NOT NULL,
   numeroRegAnvisa     VARCHAR(30)    NULL,
   tarja               VARCHAR(30)    NULL,
@@ -197,7 +197,7 @@ INSERT INTO usuarios (id, nome, email, senha, ehAtivo, perfil, numeroCRF) VALUES
 -- 3.2 Produtos
 -- Incluem: venda livre, controlados, prescritos, vencidos, próximos do vencimento.
 -- -----------------------------------------------------------------------------
-INSERT INTO produtos (id, nome, codigoBarras, descricao, principioAtivo, concentracao, formulaFarmaceutica, fabricante, numeroRegAnvisa, tarja, categoria, classificacao, quantidadeEstoque, localEstoque, validade, classeControle, retencaoReceita, validadeReceita, generico, lote, preco, dataFabricacao, quantidadeMaxima) VALUES
+INSERT INTO produtos (id, nome, codigoBarras, descricao, principioAtivo, concentracao, formaFarmaceutica, fabricante, numeroRegAnvisa, tarja, categoria, classificacao, quantidadeEstoque, localEstoque, validade, classeControle, retencaoReceita, validadeReceita, generico, lote, preco, dataFabricacao, quantidadeMaxima) VALUES
 
 -- Produtos de venda LIVRE (dentro da validade)
 (1,  'Dipirona Sódica 500mg',

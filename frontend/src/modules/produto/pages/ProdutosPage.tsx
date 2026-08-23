@@ -31,7 +31,7 @@ const emptyForm: ProdutoInput = {
   preco: 0,
   descricao: "",
   concentracao: "",
-  formulaFarmaceutica: "",
+  formaFarmaceutica: "",
   numeroRegAnvisa: "",
   tarja: "",
   classificacao: "LIVRE",
@@ -69,7 +69,7 @@ function produtoToForm(p: ProdutoDTO): ProdutoInput {
     preco: Number(p.preco),
     descricao: p.descricao ?? "",
     concentracao: p.concentracao ?? "",
-    formulaFarmaceutica: p.formulaFarmaceutica ?? "",
+    formaFarmaceutica: p.formaFarmaceutica ?? "",
     numeroRegAnvisa: p.numeroRegAnvisa ?? "",
     tarja: p.tarja ?? "",
     classificacao: p.classificacao,
@@ -477,8 +477,8 @@ export function ProdutosPage() {
           />
           <Input
             label="Forma farmacêutica"
-            value={form.formulaFarmaceutica ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, formulaFarmaceutica: e.target.value }))}
+            value={form.formaFarmaceutica ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, formaFarmaceutica: e.target.value }))}
           />
           <Input
             label="Registro ANVISA"
