@@ -15,11 +15,11 @@ import { dataHora, moeda } from "../../../shared/ui/format";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
-import { StatCard } from "../../../shared/ui/StatCard";
+import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { IconAlert, IconCart, IconHash, IconInbox, IconPills, IconRefresh, IconSearch, IconTrash, IconTrend } from "../../../shared/ui/icons";
+import { IconHash, IconInbox, IconRefresh, IconTrash } from "../../../shared/ui/icons";
 import { ProdutoRepository } from "../../produto/produto.repository";
 import { ProdutoService } from "../../produto/produto.service";
 import { VendaRepository } from "../../venda/venda.repository";
@@ -231,8 +231,6 @@ export function ItensVendaPage() {
   const nomeProduto = (produtoId: number): string =>
     indiceProdutos.get(produtoId)?.nome ?? `Produto #${produtoId}`;
 
-  const pendentes = linhas.filter((item) => item.exigeAvaliacao && !item.aprovadoFarmaceutico).length;
-
   const resultadosBusca = useMemo(() => {
     const termo = buscaProduto.trim().toLowerCase();
     const base = termo === "" ? catalogo : catalogo.filter((produto) => combina(produto, termo));
@@ -249,36 +247,17 @@ export function ItensVendaPage() {
 
   return (
     <div>
-      <PageHeader
-        description={
-          ehCaixa
-            ? "Confira os itens e o total das vendas antes de receber o pagamento."
-            : "Selecione uma venda em aberto e monte a cesta do cliente."
+      <BarraListagem
+        mostrarBusca={false}
+        acao={
+          <Button type="button" variant="secondary" onClick={() => void carregarVendas()}>
+            <IconRefresh size={16} /> Atualizar
+          </Button>
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Venda selecionada"
-          value={vendaId != null ? `#${vendaId}` : "—"}
-          icon={<IconCart />}
-          tone="green"
-        />
-        <StatCard label="Itens na venda" value={linhas.length} icon={<IconPills />} tone="mint" />
-        <StatCard label="Aguardando avaliação" value={pendentes} icon={<IconAlert />} tone="red" />
-        <StatCard label="Total" value={moeda(total)} icon={<IconTrend />} tone="rose" />
-      </div>
-
       <Card className="mb-4">
-        <CardHeader
-          titulo="Vendas"
-          descricao="Escolha a venda que você vai atender."
-          acao={
-            <Button type="button" variant="secondary" size="sm" onClick={() => void carregarVendas()}>
-              <IconRefresh size={15} /> Atualizar
-            </Button>
-          }
-        />
+        <CardHeader titulo="Vendas" descricao="Escolha a venda que você vai atender." />
 
         <div className="mb-4 flex flex-wrap gap-1.5">
           {(["TODAS", ...STATUS_ATENDIMENTO] as const).map((status) => (
@@ -338,25 +317,12 @@ export function ItensVendaPage() {
         <Card className="mb-4">
           <CardHeader titulo="Adicionar produto" descricao="Só aparecem itens vendáveis: ativos, na validade e com estoque." />
 
-          <form
-            className="mb-4 flex flex-col gap-2 sm:flex-row"
-            onSubmit={(event: FormEvent) => {
-              event.preventDefault();
-              void carregarCatalogo(buscaProduto);
-            }}
-          >
-            <div className="flex-1">
-              <Input
-                placeholder="Buscar produto por nome, princípio ativo ou código..."
-                icone={<IconSearch size={17} />}
-                value={buscaProduto}
-                onChange={(event) => setBuscaProduto(event.target.value)}
-              />
-            </div>
-            <Button type="submit" variant="secondary">
-              Buscar
-            </Button>
-          </form>
+          <BarraListagem
+            placeholder="Buscar produto por nome, princípio ativo ou código..."
+            busca={buscaProduto}
+            onBuscaChange={setBuscaProduto}
+            onBuscar={() => void carregarCatalogo(buscaProduto)}
+          />
 
           {resultadosBusca.length === 0 ? (
             <p className="text-sm text-ink-muted">

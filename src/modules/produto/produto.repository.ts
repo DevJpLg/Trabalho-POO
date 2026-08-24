@@ -70,18 +70,23 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
 
     /* ! ========== Listar Produtos ========== */
     public async listarProdutos(busca: string): Promise<Produto[] | null> {
-        const resultado = await this.prisma.produto.findMany({
-            where: { OR: [
-                { nome: { contains: busca } },
-                { codigoBarras: { contains: busca } },
-                { principioAtivo: { contains: busca } },
-                { fabricante: { contains: busca } },
-                { categoria: { contains: busca } }
-            ]}
-        });
+        let resultado;
+        if (busca === "") {
+            resultado = await this.prisma.produto.findMany();
+        } else {
+            resultado = await this.prisma.produto.findMany({
+                where: { OR: [
+                    { nome: { contains: busca } },
+                    { codigoBarras: { contains: busca } },
+                    { principioAtivo: { contains: busca } },
+                    { fabricante: { contains: busca } },
+                    { categoria: { contains: busca } }
+                ]}
+            });
+        }
 
         if (resultado.length > 0) {
-            return resultado.map((rows) => 
+            return resultado.map((rows) =>
                 Produto.rebuildProduto(rows.id, {
                     nome: rows.nome,
                     codigoBarras: rows.codigoBarras,
@@ -114,23 +119,34 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
 
     /* ! ========== Buscar Produto ========== */
     public async buscarProduto(busca: string): Promise<Produto[] | null> {
-        const resultado = await this.prisma.produto.findMany({
-            where: { AND: [
-                { OR: [
-                    { nome: { contains: busca } },
-                    { codigoBarras: { contains: busca } },
-                    { principioAtivo: { contains: busca } },
-                    { fabricante: { contains: busca } },
-                    { categoria: { contains: busca } }
-                ]},
-                { quantidadeEstoque: { gt: 0 } },
-                { validade: { gt: new Date() } },
-                { isActive: true }
-            ]}
-        });
+        let resultado;
+        if (busca === "") {
+            resultado = await this.prisma.produto.findMany({
+                where: { AND: [
+                    { quantidadeEstoque: { gt: 0 } },
+                    { validade: { gt: new Date() } },
+                    { isActive: true }
+                ]}
+            });
+        } else {
+            resultado = await this.prisma.produto.findMany({
+                where: { AND: [
+                    { OR: [
+                        { nome: { contains: busca } },
+                        { codigoBarras: { contains: busca } },
+                        { principioAtivo: { contains: busca } },
+                        { fabricante: { contains: busca } },
+                        { categoria: { contains: busca } }
+                    ]},
+                    { quantidadeEstoque: { gt: 0 } },
+                    { validade: { gt: new Date() } },
+                    { isActive: true }
+                ]}
+            });
+        }
 
         if (resultado.length > 0) {
-            return resultado.map((rows) => 
+            return resultado.map((rows) =>
                 Produto.rebuildProduto(rows.id, {
                     nome: rows.nome,
                     codigoBarras: rows.codigoBarras,
@@ -278,35 +294,32 @@ export class ProdutoRepository implements InterfaceProdutoRepository {
             orderBy: { validade: "asc" },
         });
 
-        if (resultado.length > 0) {
-            return resultado.map((rows) => 
-                Produto.rebuildProduto(rows.id, {
-                    nome: rows.nome,
-                    codigoBarras: rows.codigoBarras,
-                    descricao: rows.descricao,
-                    principioAtivo: rows.principioAtivo,
-                    concentracao: rows.concentracao,
-                    formaFarmaceutica: rows.formaFarmaceutica,
-                    fabricante: rows.fabricante,
-                    numeroRegAnvisa: rows.numeroRegAnvisa,
-                    tarja: rows.tarja,
-                    categoria: rows.categoria,
-                    classificacao: rows.classificacao as Classificacao,
-                    quantidadeEstoque: rows.quantidadeEstoque,
-                    localEstoque: rows.localEstoque,
-                    validade: rows.validade,
-                    classeControle: rows.classeControle,
-                    retencaoReceita: rows.retencaoReceita,
-                    validadeReceita: rows.validadeReceita,
-                    generico: rows.generico,
-                    lote: rows.lote,
-                    preco: Number(rows.preco),
-                    dataFabricacao: rows.dataFabricacao,
-                    quantidadeMaxima: rows.quantidadeMaxima,
-                }, rows.isActive),
-            );
-        }
-        return null;
+        return resultado.map((rows) =>
+            Produto.rebuildProduto(rows.id, {
+                nome: rows.nome,
+                codigoBarras: rows.codigoBarras,
+                descricao: rows.descricao,
+                principioAtivo: rows.principioAtivo,
+                concentracao: rows.concentracao,
+                formaFarmaceutica: rows.formaFarmaceutica,
+                fabricante: rows.fabricante,
+                numeroRegAnvisa: rows.numeroRegAnvisa,
+                tarja: rows.tarja,
+                categoria: rows.categoria,
+                classificacao: rows.classificacao as Classificacao,
+                quantidadeEstoque: rows.quantidadeEstoque,
+                localEstoque: rows.localEstoque,
+                validade: rows.validade,
+                classeControle: rows.classeControle,
+                retencaoReceita: rows.retencaoReceita,
+                validadeReceita: rows.validadeReceita,
+                generico: rows.generico,
+                lote: rows.lote,
+                preco: Number(rows.preco),
+                dataFabricacao: rows.dataFabricacao,
+                quantidadeMaxima: rows.quantidadeMaxima,
+            }, rows.isActive),
+        );
     }
 
 

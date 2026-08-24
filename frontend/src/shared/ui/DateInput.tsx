@@ -87,6 +87,7 @@ type Props = {
   error?: string;
   id?: string;
   placeholder?: string;
+  disabled?: boolean;
 };
 
 /**
@@ -105,6 +106,7 @@ export function DateInput({
   error,
   id,
   placeholder = "DD/MM/AAAA",
+  disabled = false,
 }: Props) {
   const [aberto, setAberto] = useState(false);
   const [texto, setTexto] = useState(() => isoParaBr(value));
@@ -174,26 +176,37 @@ export function DateInput({
       <div
         ref={campoRef}
         className={`flex items-center gap-2 rounded-2xl bg-surface-muted pr-2 ring-1 transition-all duration-150 hover:ring-ink-muted/35 ${
-          aberto ? "bg-surface ring-2 ring-brand-green/45" : "ring-line"
-        } ${error || invalido ? "ring-brand-red/50" : ""}`}
+          aberto && !disabled ? "bg-surface ring-2 ring-brand-green/45" : "ring-line"
+        } ${error || invalido ? "ring-brand-red/50" : ""} ${
+          disabled ? "cursor-not-allowed opacity-60" : ""
+        }`}
       >
         <input
           id={id}
           value={texto}
-          onChange={(evento) => digitar(evento.target.value)}
-          onFocus={() => setAberto(true)}
+          onChange={(evento) => {
+            if (!disabled) digitar(evento.target.value);
+          }}
+          onFocus={() => {
+            if (!disabled) setAberto(true);
+          }}
           placeholder={placeholder}
           inputMode="numeric"
           autoComplete="off"
           required={required}
+          disabled={disabled}
+          readOnly={disabled}
           aria-invalid={invalido}
-          className="min-w-0 flex-1 rounded-2xl bg-transparent px-4 py-3 text-sm text-ink outline-none placeholder:text-ink-muted/80"
+          className="min-w-0 flex-1 rounded-2xl bg-transparent px-4 py-3 text-sm text-ink outline-none placeholder:text-ink-muted/80 disabled:cursor-not-allowed"
         />
         <button
           type="button"
-          onClick={() => setAberto((atual) => !atual)}
+          onClick={() => {
+            if (!disabled) setAberto((atual) => !atual);
+          }}
+          disabled={disabled}
           aria-label="Abrir calendário"
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl text-ink-muted transition hover:bg-surface-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40"
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl text-ink-muted transition hover:bg-surface-hover hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40 disabled:pointer-events-none"
         >
           <IconCalendar size={18} />
         </button>

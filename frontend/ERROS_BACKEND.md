@@ -70,28 +70,12 @@ existente** a partir de `GET /api/vendas`.
 
 ## 5. Checagens de perfil com `||` no lugar de `&&`
 
-Em `produto.service.ts`:
+Isso existia em `realizarBaixa` e `alterarValidade`. O backend passou a usar
+`autorizacao.service`, então as rotas dedicadas voltam a funcionar.
 
-```ts
-// realizarBaixa
-if (usuarioLogado.getPerfil() !== Perfil.CAIXA || usuarioLogado.getPerfil() !== Perfil.ATENDENTE)
-
-// alterarValidade
-if (usuarioLogado.getPerfil() !== Perfil.GERENTE || usuarioLogado.getPerfil() !== Perfil.FARMACEUTICO)
-```
-
-Nenhum perfil pode ser diferente de dois valores ao mesmo tempo, então a condição é **sempre
-verdadeira** e as duas rotas recusam qualquer usuário.
-
-**No frontend:** as duas operações continuam disponíveis para o GERENTE, feitas por
-`PUT /produtos/:id` em vez das rotas dedicadas (`produto.service.baixa` e
-`produto.service.alterarValidade`, que reenviam o produto com o campo recalculado).
-
-Não há ganho de permissão nisso: o GERENTE já altera `quantidadeEstoque` e `validade` pelo
-formulário de edição — os botões são só um atalho. As validações que o backend faria
-(estoque insuficiente, produto bloqueado, validade anterior à fabricação) são aplicadas no
-service antes do envio. Trocando `||` por `&&`, basta voltar a apontar para as rotas
-dedicadas, que também reabrem a baixa para ATENDENTE/CAIXA e a validade para o FARMACEUTICO.
+**No frontend:** `PATCH /produtos/:id/validade` e `PATCH /produtos/:id/entrada`
+são usadas direto. A baixa da tela de produtos (GERENTE) continua por
+`PUT /produtos/:id`, porque `PATCH /produtos/:id/baixa` só autoriza ATENDENTE/CAIXA.
 
 ## 6. Avaliação farmacêutica inalcançável pela interface
 
@@ -111,30 +95,10 @@ qualquer usuário.
 vinculadas a cada uma, sem aprovação item a item. Uma linha em
 `usuarioPodeAvaliarItemVendas` liberando o farmacêutico na listagem destrava a tela completa.
 
-## 7. `PATCH /api/produtos/:id/entrada` não responde no sucesso
+## 7. `PATCH /api/produtos/:id/entrada` — resolvido no controller
 
-`ProdutoController.realizarEntrada` só chama `res` no caminho de erro:
-
-```ts
-const resultado = await this.service.realizarEntrada(usuarioLogado, id, qtd);
-if (resultado instanceof Error) {
-  res.status(400).json({ message: resultado.message });
-  return;
-}
-// nada aqui — a resposta nunca é enviada
-```
-
-A conexão fica aberta até o cliente desistir.
-
-**No frontend:** o `HttpClient` tem timeout (`AbortController`) e esse endpoint usa 1,5s; ao
-estourar, o `produto.service` trata como sucesso e recarrega a lista, que mostra o estoque
-real vindo do banco.
-
-Para que o estouro só possa significar sucesso, o service replica antes as três condições
-que gerariam 400 — quantidade inválida, produto bloqueado e produto vencido —, então o
-usuário recebe essas mensagens na hora, sem espera. Basta adicionar
-`res.status(200).json({ message: "Entrada registrada." })` no controller para o
-comportamento ficar correto e o timeout virar irrelevante.
+O controller agora responde `200` no sucesso. O frontend chama a rota normalmente,
+sem timeout especial.
 
 ## 8. `GET /api/prescricoes` quebra com qualquer busca que não seja data
 
@@ -224,10 +188,11 @@ que diverge em alguns pontos):
 | Ação | Perfis autorizados pelo backend |
 |------|--------------------------------|
 | CRUD de usuários | GERENTE |
-| `GET /produtos` (catálogo completo) e CRUD de produto | GERENTE |
-| `PATCH /produtos/:id/entrada` | GERENTE |
+| `GET /produtos` (catálogo completo) | GERENTE, FARMACEUTICO |
+| CRUD de produto e `PATCH /produtos/:id/entrada|validade` | GERENTE |
+| `PATCH /produtos/:id/baixa` | ATENDENTE, CAIXA |
 | `GET /produtos/busca` (catálogo vendável) | qualquer autenticado |
-| `GET /produtos/validades` e `PATCH /produtos/:id/bloquear` | FARMACEUTICO |
+| `GET /produtos/validades` e `PATCH /produtos/:id/bloquear|desbloquear` | FARMACEUTICO |
 | Itens de venda (listar, adicionar, alterar, remover, total) | ATENDENTE, CAIXA |
 | Aprovar/recusar item | FARMACEUTICO |
 | `GET /vendas` | qualquer autenticado |

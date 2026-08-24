@@ -136,31 +136,20 @@ export default class Produto {
 		this.isActive = dados.isActive ?? this.isActive;
 	}
 
-	public static criarProduto(dados: DadosProduto): Produto { //LIVRE, CONTROLADO, PRESCRITO
-		if(!dados.nome)
-			{ throw new Error("Nome inválido"); }
-		if(!dados.codigoBarras)
-			{ throw new Error("Código de barras inválido"); }
-		if(!dados.fabricante)
-			{ throw new Error("Fabricante inválido"); }
-		if(!dados.categoria)
-			{ throw new Error("Categoria inválida"); }
-		if (!dados.dataFabricacao)
-			{ throw new Error("Data de fabricação inválida"); }
-		if (!dados.validade)
-			{ throw new Error("Data de validade inválida"); }
-		if (dados.validade < dados.dataFabricacao)
-			{ throw new Error("Data de validade menor que a data de fabricação"); }
-		if (!dados.preco || dados.preco < 0)
-			{ throw new Error("Preço inválido"); }
-		if (!dados.quantidadeEstoque || dados.quantidadeEstoque < 0)
-			{ throw new Error("Quantidade de estoque inválida"); }
+	public static criarProduto(dados: DadosProduto): Produto | Error {
+		if(!dados.nome) 										{ return new Error("Nome inválido"); }
+		if(!dados.codigoBarras)									{ return new Error("Código de barras inválido"); }
+		if(!dados.fabricante)									{ return new Error("Fabricante inválido"); }
+		if(!dados.categoria)									{ return new Error("Categoria inválida"); }
+		if (!dados.dataFabricacao)								{ return new Error("Data de fabricação inválida"); }
+		if (!dados.validade)									{ return new Error("Data de validade inválida"); }
+		if (dados.validade < dados.dataFabricacao)				{ return new Error("Data de validade menor que a data de fabricação"); }
+		if (!Number.isFinite(dados.preco) || dados.preco < 0)	{ return new Error("Preço inválido"); }
+		const estoque = dados.quantidadeEstoque ?? 0;
+		if (!Number.isFinite(estoque) || estoque < 0)			{ return new Error("Quantidade de estoque inválida"); }
 
 		const id = randomInt(1, 1000000);
-
-		const produto = new Produto(id, dados, true);
-
-		return produto;
+		return new Produto(id, dados, true);
 	}
 
 	public static rebuildProduto(id: number, dados: DadosProduto, isActive: boolean): Produto {
@@ -168,28 +157,19 @@ export default class Produto {
 		return produto;
 	}
 
-	public editarProduto(dados: DadosProduto): Produto {
-		if(!dados.nome)
-			{ throw new Error("Nome inválido"); }
-		if(!dados.codigoBarras)
-			{ throw new Error("Código de barras inválido"); }
-		if(!dados.fabricante)
-			{ throw new Error("Fabricante inválido"); }
-		if(!dados.categoria)
-			{ throw new Error("Categoria inválida"); }
-		if (!dados.dataFabricacao)
-			{ throw new Error("Data de fabricação inválida"); }
-		if (!dados.validade)
-			{ throw new Error("Data de validade inválida"); }
-		if (dados.validade < dados.dataFabricacao)
-			{ throw new Error("Data de validade menor que a data de fabricação"); }
-		if (!dados.preco || dados.preco < 0)
-			{ throw new Error("Preço inválido"); }
-		if (!dados.quantidadeEstoque || dados.quantidadeEstoque < 0)
-			{ throw new Error("Quantidade de estoque inválida"); }
+	public editarProduto(dados: DadosProduto): Produto | Error {
+		if(!dados.nome) 										{ return new Error("Nome inválido"); }
+		if(!dados.codigoBarras)									{ return new Error("Código de barras inválido"); }
+		if(!dados.fabricante)									{ return new Error("Fabricante inválido"); }
+		if(!dados.categoria)									{ return new Error("Categoria inválida"); }
+		if (!dados.dataFabricacao)								{ return new Error("Data de fabricação inválida"); }
+		if (!dados.validade)									{ return new Error("Data de validade inválida"); }
+		if (dados.validade < dados.dataFabricacao)				{ return new Error("Data de validade menor que a data de fabricação"); }
+		if (!Number.isFinite(dados.preco) || dados.preco < 0)	{ return new Error("Preço inválido"); }
+		const estoque = dados.quantidadeEstoque ?? 0;
+		if (!Number.isFinite(estoque) || estoque < 0)			{ return new Error("Quantidade de estoque inválida"); }
 
 		this.atualizarProduto(dados);
-
 		return this;
 	}
 

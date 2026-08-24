@@ -15,11 +15,11 @@ import { Checkbox, Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { DateInput } from "../../../shared/ui/DateInput";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
-import { StatCard } from "../../../shared/ui/StatCard";
+import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { IconAlert, IconFile, IconPencil, IconPlus, IconSearch, IconShield, IconTrash } from "../../../shared/ui/icons";
+import { IconFile, IconPencil, IconPlus, IconTrash } from "../../../shared/ui/icons";
 import { VendaRepository } from "../../venda/venda.repository";
 import { VendaService } from "../../venda/venda.service";
 import { PrescricaoRepository } from "../prescricao.repository";
@@ -170,11 +170,6 @@ export function PrescricoesPage() {
     }
   }
 
-  const vencidas = rows.filter((prescricao) => {
-    const dias = diasAte(prescricao.dataValidade);
-    return dias !== null && dias < 0;
-  }).length;
-
   const opcoesVenda =
     vendas.length > 0
       ? vendas.map((venda) => ({
@@ -186,51 +181,17 @@ export function PrescricoesPage() {
 
   return (
     <div>
-      <PageHeader
-        description="Receitas apresentadas para medicamentos controlados e prescritos."
-        actions={
+      <BarraListagem
+        placeholder="Buscar por número, paciente, médico ou CRM"
+        busca={busca}
+        onBuscaChange={setBusca}
+        onBuscar={() => void carregar(busca)}
+        acao={
           <Button type="button" onClick={openCreate}>
             <IconPlus size={16} /> Nova prescrição
           </Button>
         }
       />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Prescrições" value={rows.length} icon={<IconFile />} tone="green" />
-        <StatCard
-          label="Com retenção"
-          value={rows.filter((prescricao) => prescricao.retencao).length}
-          icon={<IconShield />}
-          tone="mint"
-        />
-        <StatCard
-          label="Já retidas"
-          value={rows.filter((prescricao) => prescricao.retida).length}
-          icon={<IconFile />}
-          tone="rose"
-        />
-        <StatCard label="Vencidas" value={vencidas} icon={<IconAlert />} tone="red" />
-      </div>
-
-      <form
-        className="mb-4 flex flex-col gap-2 sm:flex-row"
-        onSubmit={(event: FormEvent) => {
-          event.preventDefault();
-          void carregar(busca);
-        }}
-      >
-        <div className="flex-1">
-          <Input
-            placeholder="Buscar por número, paciente, médico ou CRM"
-            icone={<IconSearch size={17} />}
-            value={busca}
-            onChange={(event) => setBusca(event.target.value)}
-          />
-        </div>
-        <Button type="submit" variant="secondary">
-          Buscar
-        </Button>
-      </form>
 
       {error ? (
         <div className="mb-4">

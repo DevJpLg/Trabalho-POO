@@ -16,26 +16,23 @@ import {
 } from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
 import { Button, IconButton } from "../../../shared/ui/Button";
-import { data as formatarData, diasAte, moeda, paraInputDate } from "../../../shared/ui/format";
+import { data as formatarData, diasAte, moeda } from "../../../shared/ui/format";
 import { Checkbox, Input, Textarea } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { DateInput } from "../../../shared/ui/DateInput";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
-import { StatCard } from "../../../shared/ui/StatCard";
+import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
 import {
-  IconAlert,
   IconArrowDown,
-  IconArrowUp,
   IconCalendar,
+  IconEye,
   IconLock,
   IconPencil,
   IconPills,
   IconPlus,
-  IconSearch,
-  IconShield,
   IconTrash,
   IconUnlock,
 } from "../../../shared/ui/icons";
@@ -81,6 +78,202 @@ function classificacaoTone(classificacao: Classificacao) {
   return "amber" as const;
 }
 
+function FormularioProduto({
+  form,
+  setForm,
+  disabled = false,
+  mostrarStatus = false,
+}: {
+  form: ProdutoInput;
+  setForm: (atualizar: (atual: ProdutoInput) => ProdutoInput) => void;
+  disabled?: boolean;
+  mostrarStatus?: boolean;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <Input
+        label="Nome"
+        required
+        disabled={disabled}
+        value={form.nome}
+        onChange={(event) => setForm((atual) => ({ ...atual, nome: event.target.value }))}
+      />
+      <Input
+        label="Código de barras"
+        required
+        disabled={disabled}
+        value={form.codigoBarras}
+        onChange={(event) => setForm((atual) => ({ ...atual, codigoBarras: event.target.value }))}
+      />
+      <Input
+        label="Princípio ativo"
+        required
+        disabled={disabled}
+        value={form.principioAtivo}
+        onChange={(event) => setForm((atual) => ({ ...atual, principioAtivo: event.target.value }))}
+      />
+      <Input
+        label="Fabricante"
+        required
+        disabled={disabled}
+        value={form.fabricante}
+        onChange={(event) => setForm((atual) => ({ ...atual, fabricante: event.target.value }))}
+      />
+      <Input
+        label="Categoria"
+        required
+        disabled={disabled}
+        value={form.categoria}
+        onChange={(event) => setForm((atual) => ({ ...atual, categoria: event.target.value }))}
+      />
+      <Input
+        label="Registro ANVISA"
+        required
+        disabled={disabled}
+        value={form.numeroRegAnvisa ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, numeroRegAnvisa: event.target.value }))}
+      />
+      <Input
+        label="Preço (R$)"
+        type="number"
+        step="0.01"
+        min="0"
+        required
+        disabled={disabled}
+        value={String(form.preco)}
+        onChange={(event) => setForm((atual) => ({ ...atual, preco: Number(event.target.value) }))}
+      />
+      <Select
+        label="Classificação"
+        options={classificacaoOptions}
+        value={form.classificacao ?? "LIVRE"}
+        disabled={disabled}
+        onChange={(valor) => setForm((atual) => ({ ...atual, classificacao: valor as Classificacao }))}
+      />
+      <DateInput
+        label="Data de fabricação"
+        required
+        disabled={disabled}
+        value={form.dataFabricacao ?? ""}
+        onChange={(iso) => setForm((atual) => ({ ...atual, dataFabricacao: iso }))}
+      />
+      <DateInput
+        label="Validade"
+        required
+        disabled={disabled}
+        value={form.validade ?? ""}
+        onChange={(iso) => setForm((atual) => ({ ...atual, validade: iso }))}
+      />
+      <Input
+        label="Quantidade em estoque"
+        type="number"
+        min="0"
+        disabled={disabled}
+        value={String(form.quantidadeEstoque ?? 0)}
+        onChange={(event) =>
+          setForm((atual) => ({ ...atual, quantidadeEstoque: Number(event.target.value) }))
+        }
+      />
+      <Input
+        label="Quantidade máxima por venda"
+        type="number"
+        min="0"
+        disabled={disabled}
+        value={form.quantidadeMaxima == null ? "" : String(form.quantidadeMaxima)}
+        onChange={(event) =>
+          setForm((atual) => ({
+            ...atual,
+            quantidadeMaxima: event.target.value === "" ? null : Number(event.target.value),
+          }))
+        }
+      />
+      <Input
+        label="Concentração"
+        disabled={disabled}
+        value={form.concentracao ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, concentracao: event.target.value }))}
+      />
+      <Input
+        label="Forma farmacêutica"
+        disabled={disabled}
+        value={form.formaFarmaceutica ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, formaFarmaceutica: event.target.value }))}
+      />
+      <Input
+        label="Tarja"
+        disabled={disabled}
+        value={form.tarja ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, tarja: event.target.value }))}
+      />
+      <Input
+        label="Classe de controle"
+        disabled={disabled}
+        value={form.classeControle ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, classeControle: event.target.value }))}
+      />
+      <Input
+        label="Lote"
+        disabled={disabled}
+        value={form.lote ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, lote: event.target.value }))}
+      />
+      <Input
+        label="Local no estoque"
+        disabled={disabled}
+        value={form.localEstoque ?? ""}
+        onChange={(event) => setForm((atual) => ({ ...atual, localEstoque: event.target.value }))}
+      />
+      <Input
+        label="Validade da receita (dias)"
+        type="number"
+        min="0"
+        disabled={disabled}
+        value={form.validadeReceita == null ? "" : String(form.validadeReceita)}
+        onChange={(event) =>
+          setForm((atual) => ({
+            ...atual,
+            validadeReceita: event.target.value === "" ? null : Number(event.target.value),
+          }))
+        }
+      />
+
+      <div className="flex flex-wrap items-end gap-5 rounded-2xl bg-surface-muted px-4 py-3 sm:col-span-2 lg:col-span-3">
+        <Checkbox
+          label="Exige retenção de receita"
+          disabled={disabled}
+          checked={Boolean(form.retencaoReceita)}
+          onChange={(event) =>
+            setForm((atual) => ({ ...atual, retencaoReceita: event.target.checked }))
+          }
+        />
+        <Checkbox
+          label="Genérico"
+          disabled={disabled}
+          checked={Boolean(form.generico)}
+          onChange={(event) => setForm((atual) => ({ ...atual, generico: event.target.checked }))}
+        />
+        {mostrarStatus ? (
+          <Checkbox
+            label="Produto ativo"
+            disabled={disabled}
+            checked={Boolean(form.isActive)}
+            onChange={(event) => setForm((atual) => ({ ...atual, isActive: event.target.checked }))}
+          />
+        ) : null}
+      </div>
+
+      <div className="sm:col-span-2 lg:col-span-3">
+        <Textarea
+          label="Descrição"
+          disabled={disabled}
+          value={form.descricao ?? ""}
+          onChange={(event) => setForm((atual) => ({ ...atual, descricao: event.target.value }))}
+        />
+      </div>
+    </div>
+  );
+}
+
 /** A tela serve três rotas; o modo decide a fonte de dados e o texto de apoio. */
 type ModoLista = "catalogo" | "entrada" | "validades";
 
@@ -89,48 +282,6 @@ function modoDaRota(pathname: string): ModoLista {
   if (pathname.endsWith("/entrada")) return "entrada";
   return "catalogo";
 }
-
-function produtoToForm(p: ProdutoDTO): ProdutoInput {
-  return {
-    nome: p.nome,
-    codigoBarras: p.codigoBarras,
-    principioAtivo: p.principioAtivo,
-    fabricante: p.fabricante,
-    categoria: p.categoria,
-    preco: Number(p.preco),
-    descricao: p.descricao ?? "",
-    concentracao: p.concentracao ?? "",
-    formaFarmaceutica: p.formaFarmaceutica ?? "",
-    numeroRegAnvisa: p.numeroRegAnvisa ?? "",
-    tarja: p.tarja ?? "",
-    classificacao: p.classificacao,
-    quantidadeEstoque: p.quantidadeEstoque,
-    localEstoque: p.localEstoque ?? "",
-    validade: toDateInput(p.validade),
-    classeControle: p.classeControle ?? "",
-    retencaoReceita: p.retencaoReceita,
-    validadeReceita: p.validadeReceita,
-    generico: p.generico,
-    lote: p.lote ?? "",
-    dataFabricacao: toDateInput(p.dataFabricacao),
-    quantidadeMaxima: p.quantidadeMaxima,
-    isActive: p.isActive,
-  };
-}
-const descricaoPorModo: Record<ModoLista, string> = {
-  catalogo: "Estoque, validade e classificação de medicamentos.",
-  entrada: "Registre a entrada de mercadoria no estoque de cada produto.",
-  validades: "Produtos que vencem nos próximos 30 dias, do mais urgente para o menos.",
-};
-
-/** Operações de estoque que compartilham o mesmo modal. */
-type AcaoEstoque = "entrada" | "baixa" | "validade";
-
-const tituloAcao: Record<AcaoEstoque, string> = {
-  entrada: "Entrada de estoque",
-  baixa: "Baixa de estoque",
-  validade: "Alterar validade",
-};
 
 export function ProdutosPage() {
   const location = useLocation();
@@ -167,10 +318,9 @@ export function ProdutosPage() {
   const [form, setForm] = useState<ProdutoInput>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  const [acaoEstoque, setAcaoEstoque] = useState<{ produto: ProdutoDTO; tipo: AcaoEstoque } | null>(
-    null,
-  );
+  const [acaoEntrada, setAcaoEntrada] = useState<ProdutoDTO | null>(null);
   const [valorAcao, setValorAcao] = useState("");
+  const [detalhe, setDetalhe] = useState<ProdutoDTO | null>(null);
 
   const load = useCallback(
     async (termo: string) => {
@@ -210,9 +360,9 @@ export function ProdutosPage() {
     setModalOpen(true);
   }
 
-  function abrirAcao(produto: ProdutoDTO, tipo: AcaoEstoque) {
-    setAcaoEstoque({ produto, tipo });
-    setValorAcao(tipo === "validade" ? paraInputDate(produto.validade) : "");
+  function abrirEntrada(produto: ProdutoDTO) {
+    setAcaoEntrada(produto);
+    setValorAcao("");
     setError(null);
   }
 
@@ -252,7 +402,9 @@ export function ProdutosPage() {
     setError(null);
     setSuccess(null);
     try {
-      const resultado = await service.bloquear(produto.id);
+      const resultado = produto.isActive
+        ? await service.bloquear(produto.id)
+        : await service.desbloquear(produto.id);
       setSuccess(resultado.message);
       await load(busca);
     } catch (err) {
@@ -262,23 +414,15 @@ export function ProdutosPage() {
 
   async function onAcaoSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!acaoEstoque) return;
+    if (!acaoEntrada) return;
 
-    const { produto, tipo } = acaoEstoque;
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      if (tipo === "entrada") {
-        setSuccess(await service.entrada(produto, Number(valorAcao)));
-      } else if (tipo === "baixa") {
-        const resultado = await service.baixa(produto, Number(valorAcao));
-        setSuccess(resultado.message);
-      } else {
-        const resultado = await service.alterarValidade(produto, valorAcao);
-        setSuccess(resultado.message);
-      }
-      setAcaoEstoque(null);
+      const resultado = await service.entrada(acaoEntrada.id, Number(valorAcao));
+      setSuccess(resultado.message);
+      setAcaoEntrada(null);
       setValorAcao("");
       await load(busca);
     } catch (err) {
@@ -288,72 +432,23 @@ export function ProdutosPage() {
     }
   }
 
-  const vencidos = rows.filter((produto) => {
-    const dias = diasAte(produto.validade);
-    return dias !== null && dias < 0;
-  }).length;
-
-  const mostraAcoes = gerenciaProdutos || daEntrada || controlaValidade;
-
   return (
     <div>
-      <PageHeader
-        description={descricaoPorModo[modo]}
-        actions={
-          gerenciaProdutos ? (
-            <Button type="button" onClick={openCreate}>
-              <IconPlus size={16} /> Novo produto
-            </Button>
-          ) : undefined
-        }
-      />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Listados" value={rows.length} icon={<IconPills />} tone="green" />
-        <StatCard
-          label="Ativos"
-          value={rows.filter((produto) => produto.isActive).length}
-          icon={<IconPills />}
-          tone="mint"
-        />
-        <StatCard
-          label={modo === "validades" ? "Já vencidos" : "Estoque baixo"}
-          value={
-            modo === "validades"
-              ? vencidos
-              : rows.filter((produto) => produto.quantidadeEstoque <= 5).length
+      {modo !== "validades" || gerenciaProdutos ? (
+        <BarraListagem
+          mostrarBusca={modo !== "validades"}
+          placeholder="Buscar por nome, código de barras, princípio ativo..."
+          busca={busca}
+          onBuscaChange={setBusca}
+          onBuscar={() => void load(busca)}
+          acao={
+            gerenciaProdutos ? (
+              <Button type="button" onClick={openCreate}>
+                <IconPlus size={16} /> Novo produto
+              </Button>
+            ) : undefined
           }
-          icon={<IconAlert />}
-          tone="red"
         />
-        <StatCard
-          label="Bloqueados"
-          value={rows.filter((produto) => !produto.isActive).length}
-          icon={<IconShield />}
-          tone="rose"
-        />
-      </div>
-
-      {modo !== "validades" ? (
-        <form
-          className="mb-4 flex flex-col gap-2 sm:flex-row"
-          onSubmit={(event: FormEvent) => {
-            event.preventDefault();
-            void load(busca);
-          }}
-        >
-          <div className="flex-1">
-            <Input
-              placeholder="Buscar por nome, código de barras, princípio ativo..."
-              icone={<IconSearch size={17} />}
-              value={busca}
-              onChange={(event) => setBusca(event.target.value)}
-            />
-          </div>
-          <Button type="submit" variant="secondary">
-            Buscar
-          </Button>
-        </form>
       ) : null}
 
       {!catalogoCompleto && modo === "catalogo" ? (
@@ -471,67 +566,50 @@ export function ProdutosPage() {
                 </Badge>
               ),
             },
-            ...(mostraAcoes
-              ? [
-                  {
-                    key: "acoes",
-                    header: "Ações",
-                    fim: true,
-                    className: "min-w-40",
-                    render: (produto: ProdutoDTO) => (
-                      <RowActions>
-                        {gerenciaProdutos ? (
-                          <IconButton label="Editar produto" onClick={() => openEdit(produto)}>
-                            <IconPencil size={17} />
-                          </IconButton>
-                        ) : null}
-                        {daEntrada ? (
-                          <IconButton
-                            label="Entrada de estoque"
-                            tone="success"
-                            onClick={() => abrirAcao(produto, "entrada")}
-                          >
-                            <IconArrowDown size={17} />
-                          </IconButton>
-                        ) : null}
-                        {gerenciaProdutos ? (
-                          <>
-                            <IconButton
-                              label="Baixa de estoque"
-                              onClick={() => abrirAcao(produto, "baixa")}
-                            >
-                              <IconArrowUp size={17} />
-                            </IconButton>
-                            <IconButton
-                              label="Alterar validade"
-                              onClick={() => abrirAcao(produto, "validade")}
-                            >
-                              <IconCalendar size={17} />
-                            </IconButton>
-                          </>
-                        ) : null}
-                        {controlaValidade ? (
-                          <IconButton
-                            label={produto.isActive ? "Bloquear produto" : "Desbloquear produto"}
-                            onClick={() => void onBloquear(produto)}
-                          >
-                            {produto.isActive ? <IconLock size={17} /> : <IconUnlock size={17} />}
-                          </IconButton>
-                        ) : null}
-                        {gerenciaProdutos ? (
-                          <IconButton
-                            label="Excluir produto"
-                            tone="danger"
-                            onClick={() => void onDelete(produto)}
-                          >
-                            <IconTrash size={17} />
-                          </IconButton>
-                        ) : null}
-                      </RowActions>
-                    ),
-                  },
-                ]
-              : []),
+            {
+              key: "acoes",
+              header: "Ações",
+              fim: true,
+              className: "min-w-40",
+              render: (produto: ProdutoDTO) => (
+                <RowActions>
+                  <IconButton label="Detalhes do produto" onClick={() => setDetalhe(produto)}>
+                    <IconEye size={17} />
+                  </IconButton>
+                  {gerenciaProdutos ? (
+                    <IconButton label="Editar produto" onClick={() => openEdit(produto)}>
+                      <IconPencil size={17} />
+                    </IconButton>
+                  ) : null}
+                  {daEntrada ? (
+                    <IconButton
+                      label="Entrada de estoque"
+                      tone="success"
+                      onClick={() => abrirEntrada(produto)}
+                    >
+                      <IconArrowDown size={17} />
+                    </IconButton>
+                  ) : null}
+                  {controlaValidade ? (
+                    <IconButton
+                      label={produto.isActive ? "Bloquear produto" : "Desbloquear produto"}
+                      onClick={() => void onBloquear(produto)}
+                    >
+                      {produto.isActive ? <IconLock size={17} /> : <IconUnlock size={17} />}
+                    </IconButton>
+                  ) : null}
+                  {gerenciaProdutos ? (
+                    <IconButton
+                      label="Excluir produto"
+                      tone="danger"
+                      onClick={() => void onDelete(produto)}
+                    >
+                      <IconTrash size={17} />
+                    </IconButton>
+                  ) : null}
+                </RowActions>
+              ),
+            },
           ]}
         />
       )}
@@ -539,6 +617,7 @@ export function ProdutosPage() {
       <Modal
         open={modalOpen}
         title={editing ? "Editar produto" : "Novo produto"}
+        tamanho="lg"
         onClose={() => setModalOpen(false)}
         footer={
           <>
@@ -551,230 +630,69 @@ export function ProdutosPage() {
           </>
         }
       >
-        <form id="produto-form" className="grid gap-3 sm:grid-cols-2" onSubmit={onSubmit}>
-          <Input
-            label="Nome"
-            required
-            value={form.nome}
-            onChange={(event) => setForm((atual) => ({ ...atual, nome: event.target.value }))}
-          />
-          <Input
-            label="Código de barras"
-            required
-            value={form.codigoBarras}
-            onChange={(event) =>
-              setForm((atual) => ({ ...atual, codigoBarras: event.target.value }))
-            }
-          />
-          <Input
-            label="Princípio ativo"
-            required
-            value={form.principioAtivo}
-            onChange={(event) =>
-              setForm((atual) => ({ ...atual, principioAtivo: event.target.value }))
-            }
-          />
-          <Input
-            label="Fabricante"
-            required
-            value={form.fabricante}
-            onChange={(event) => setForm((atual) => ({ ...atual, fabricante: event.target.value }))}
-          />
-          <Input
-            label="Categoria"
-            required
-            value={form.categoria}
-            onChange={(event) => setForm((atual) => ({ ...atual, categoria: event.target.value }))}
-          />
-          <Input
-            label="Registro ANVISA"
-            required
-            value={form.numeroRegAnvisa ?? ""}
-            onChange={(event) =>
-              setForm((atual) => ({ ...atual, numeroRegAnvisa: event.target.value }))
-            }
-          />
-          <Input
-            label="Preço (R$)"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={String(form.preco)}
-            onChange={(event) => setForm((atual) => ({ ...atual, preco: Number(event.target.value) }))}
-          />
-          <Select
-            label="Classificação"
-            options={classificacaoOptions}
-            value={form.classificacao ?? "LIVRE"}
-            onChange={(valor) =>
-              setForm((atual) => ({ ...atual, classificacao: valor as Classificacao }))
-            }
-          />
-          <DateInput
-            label="Data de fabricação"
-            required
-            value={form.dataFabricacao ?? ""}
-            onChange={(iso) => setForm((atual) => ({ ...atual, dataFabricacao: iso }))}
-          />
-          <DateInput
-            label="Validade"
-            required
-            value={form.validade ?? ""}
-            onChange={(iso) => setForm((atual) => ({ ...atual, validade: iso }))}
-          />
-          <Input
-            label="Quantidade em estoque"
-            type="number"
-            min="0"
-            value={String(form.quantidadeEstoque ?? 0)}
-            onChange={(event) =>
-              setForm((atual) => ({ ...atual, quantidadeEstoque: Number(event.target.value) }))
-            }
-          />
-          <Input
-            label="Quantidade máxima por venda"
-            type="number"
-            min="0"
-            value={form.quantidadeMaxima == null ? "" : String(form.quantidadeMaxima)}
-            onChange={(event) =>
-              setForm((atual) => ({
-                ...atual,
-                quantidadeMaxima: event.target.value === "" ? null : Number(event.target.value),
-              }))
-            }
-          />
-          <Input
-            label="Concentração"
-            value={form.concentracao ?? ""}
-            onChange={(event) => setForm((atual) => ({ ...atual, concentracao: event.target.value }))}
-          />
-          <Input
-            label="Forma farmacêutica"
-            value={form.formaFarmaceutica ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, formaFarmaceutica: e.target.value }))}
-          />
-          <Input
-            label="Registro ANVISA"
-            value={form.numeroRegAnvisa ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, numeroRegAnvisa: e.target.value }))}
-          />
-          <Input
-            label="Tarja"
-            value={form.tarja ?? ""}
-            onChange={(event) => setForm((atual) => ({ ...atual, tarja: event.target.value }))}
-          />
-          <Input
-            label="Classe de controle"
-            value={form.classeControle ?? ""}
-            onChange={(event) =>
-              setForm((atual) => ({ ...atual, classeControle: event.target.value }))
-            }
-          />
-          <Input
-            label="Lote"
-            value={form.lote ?? ""}
-            onChange={(event) => setForm((atual) => ({ ...atual, lote: event.target.value }))}
-          />
-          <Input
-            label="Local no estoque"
-            value={form.localEstoque ?? ""}
-            onChange={(event) => setForm((atual) => ({ ...atual, localEstoque: event.target.value }))}
-          />
-          <Input
-            label="Validade da receita (dias)"
-            type="number"
-            min="0"
-            value={form.validadeReceita == null ? "" : String(form.validadeReceita)}
-            onChange={(event) =>
-              setForm((atual) => ({
-                ...atual,
-                validadeReceita: event.target.value === "" ? null : Number(event.target.value),
-              }))
-            }
-          />
-
-          <div className="flex flex-wrap items-end gap-5 rounded-2xl bg-surface-muted px-4 py-3 sm:col-span-2">
-            <Checkbox
-              label="Exige retenção de receita"
-              checked={Boolean(form.retencaoReceita)}
-              onChange={(event) =>
-                setForm((atual) => ({ ...atual, retencaoReceita: event.target.checked }))
-              }
-            />
-            <Checkbox
-              label="Genérico"
-              checked={Boolean(form.generico)}
-              onChange={(event) => setForm((atual) => ({ ...atual, generico: event.target.checked }))}
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <Textarea
-              label="Descrição"
-              value={form.descricao ?? ""}
-              onChange={(event) => setForm((atual) => ({ ...atual, descricao: event.target.value }))}
-            />
-          </div>
+        <form id="produto-form" onSubmit={onSubmit}>
+          <FormularioProduto form={form} setForm={setForm} />
         </form>
       </Modal>
 
       <Modal
-        open={acaoEstoque !== null}
-        title={
-          acaoEstoque
-            ? `${tituloAcao[acaoEstoque.tipo]} · ${acaoEstoque.produto.nome}`
-            : "Movimentação de estoque"
+        open={detalhe !== null}
+        title={detalhe ? `Detalhes · ${detalhe.nome}` : "Detalhes do produto"}
+        tamanho="xl"
+        onClose={() => setDetalhe(null)}
+        footer={
+          <Button type="button" variant="secondary" onClick={() => setDetalhe(null)}>
+            Fechar
+          </Button>
         }
-        onClose={() => setAcaoEstoque(null)}
+      >
+        {detalhe ? (
+          <div className="space-y-3">
+            <Input label="ID" disabled value={String(detalhe.id)} readOnly />
+            <FormularioProduto
+              form={produtoParaInput(detalhe)}
+              setForm={() => undefined}
+              disabled
+              mostrarStatus
+            />
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={acaoEntrada !== null}
+        title={acaoEntrada ? `Entrada de estoque · ${acaoEntrada.nome}` : "Entrada de estoque"}
+        onClose={() => setAcaoEntrada(null)}
         footer={
           <>
-            <Button type="button" variant="secondary" onClick={() => setAcaoEstoque(null)}>
+            <Button type="button" variant="secondary" onClick={() => setAcaoEntrada(null)}>
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              form="acao-estoque-form"
-              variant={acaoEstoque?.tipo === "entrada" ? "success" : "primary"}
-              disabled={saving}
-            >
+            <Button type="submit" form="acao-estoque-form" variant="success" disabled={saving}>
               {saving ? "Salvando..." : "Confirmar"}
             </Button>
           </>
         }
       >
         <form id="acao-estoque-form" className="space-y-3" onSubmit={onAcaoSubmit}>
-          {acaoEstoque ? (
+          {acaoEntrada ? (
             <p className="text-sm text-ink-muted">
               Estoque atual:{" "}
-              <strong className="text-ink">{acaoEstoque.produto.quantidadeEstoque}</strong> unidades
+              <strong className="text-ink">{acaoEntrada.quantidadeEstoque}</strong> unidades
               · validade atual:{" "}
-              <strong className="text-ink">{formatarData(acaoEstoque.produto.validade)}</strong>
+              <strong className="text-ink">{formatarData(acaoEntrada.validade)}</strong>
             </p>
           ) : null}
 
-          {acaoEstoque?.tipo === "validade" ? (
-            <DateInput
-              label="Nova validade"
-              required
-              value={valorAcao}
-              onChange={(iso) => setValorAcao(iso)}
-            />
-          ) : (
-            <Input
-              label={
-                acaoEstoque?.tipo === "baixa"
-                  ? "Quantidade a retirar"
-                  : "Quantidade a adicionar"
-              }
-              type="number"
-              min="1"
-              step="1"
-              required
-              value={valorAcao}
-              onChange={(event) => setValorAcao(event.target.value)}
-            />
-          )}
+          <Input
+            label="Quantidade a adicionar"
+            type="number"
+            min="1"
+            step="1"
+            required
+            value={valorAcao}
+            onChange={(event) => setValorAcao(event.target.value)}
+          />
         </form>
       </Modal>
     </div>

@@ -54,18 +54,12 @@ export function LoginPage() {
       />
 
       <div className="relative w-full max-w-[26rem]">
-        <div className="mb-9 flex flex-col items-center text-center">
+        <div className="mb-0 flex flex-col items-center text-center">
           <img
             src="/logo.png"
             alt="Farmácia Bairro Saúde"
-            className="h-20 w-auto object-contain"
+            className="h-50 w-auto object-contain"
           />
-          <h1 className="mt-6 text-[28px] font-bold leading-tight tracking-tight text-ink">
-            Bem-vindo de volta
-          </h1>
-          <p className="mt-2 text-sm text-ink-muted">
-            Entre com o e-mail e a senha cadastrados.
-          </p>
         </div>
 
         <form

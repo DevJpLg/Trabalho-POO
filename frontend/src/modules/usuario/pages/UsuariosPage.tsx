@@ -17,13 +17,12 @@ import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Modal } from "../../../shared/ui/Modal";
 import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
-import { StatCard } from "../../../shared/ui/StatCard";
+import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
 import {
   IconPencil,
   IconPlus,
-  IconSearch,
   IconShield,
   IconTrash,
   IconUser,
@@ -184,50 +183,19 @@ function GestaoDeUsuarios() {
     }
   }
 
-  const contar = (perfil: Perfil) => rows.filter((usuario) => usuario.perfil === perfil).length;
-
   return (
     <div>
-      <PageHeader
-        description="Cadastro e manutenção dos perfis da equipe."
-        actions={
+      <BarraListagem
+        placeholder="Buscar por nome, e-mail ou perfil"
+        busca={busca}
+        onBuscaChange={setBusca}
+        onBuscar={() => void carregar(busca)}
+        acao={
           <Button type="button" onClick={openCreate}>
             <IconPlus size={16} /> Novo usuário
           </Button>
         }
       />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Gerentes" value={contar("GERENTE")} icon={<IconUsers />} tone="red" />
-        <StatCard label="Atendentes" value={contar("ATENDENTE")} icon={<IconUsers />} tone="green" />
-        <StatCard
-          label="Farmacêuticos"
-          value={contar("FARMACEUTICO")}
-          icon={<IconUsers />}
-          tone="mint"
-        />
-        <StatCard label="Caixas" value={contar("CAIXA")} icon={<IconUsers />} tone="rose" />
-      </div>
-
-      <form
-        className="mb-4 flex flex-col gap-2 sm:flex-row"
-        onSubmit={(event: FormEvent) => {
-          event.preventDefault();
-          void carregar(busca);
-        }}
-      >
-        <div className="flex-1">
-          <Input
-            placeholder="Buscar por nome, e-mail ou perfil"
-            icone={<IconSearch size={17} />}
-            value={busca}
-            onChange={(event) => setBusca(event.target.value)}
-          />
-        </div>
-        <Button type="submit" variant="secondary">
-          Buscar
-        </Button>
-      </form>
 
       {error ? (
         <div className="mb-4">

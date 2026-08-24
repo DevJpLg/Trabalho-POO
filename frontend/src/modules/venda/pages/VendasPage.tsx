@@ -13,11 +13,11 @@ import {
 import { Badge } from "../../../shared/ui/Badge";
 import { Button } from "../../../shared/ui/Button";
 import { dataHora } from "../../../shared/ui/format";
-import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
-import { StatCard } from "../../../shared/ui/StatCard";
+import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { IconCart, IconClipboard, IconRefresh, IconShield, IconTrend } from "../../../shared/ui/icons";
+import { IconCart, IconRefresh } from "../../../shared/ui/icons";
 import { UsuarioRepository } from "../../usuario/usuario.repository";
 import { UsuarioService } from "../../usuario/usuario.service";
 import { VendaRepository } from "../venda.repository";
@@ -94,39 +94,16 @@ export function VendasPage() {
     else setParams({});
   }
 
-  const contar = (status: StatusVenda) => rows.filter((venda) => venda.status === status).length;
-
   return (
     <div>
-      <PageHeader
-        description={
-          statusFiltro
-            ? `Listando vendas com status “${statusVendaLabel[statusFiltro]}”.`
-            : "Todas as vendas registradas no sistema."
-        }
-        actions={
+      <BarraListagem
+        mostrarBusca={false}
+        acao={
           <Button type="button" variant="secondary" onClick={() => void carregar()}>
             <IconRefresh size={16} /> Atualizar
           </Button>
         }
       />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Listadas" value={rows.length} icon={<IconCart />} tone="green" />
-        <StatCard label="Em aberto" value={contar("EM_ANDAMENTO")} icon={<IconTrend />} tone="mint" />
-        <StatCard
-          label="Em avaliação"
-          value={contar("EM_AVALIACAO")}
-          icon={<IconClipboard />}
-          tone="red"
-        />
-        <StatCard
-          label="Finalizadas"
-          value={contar("FINALIZADA")}
-          icon={<IconShield />}
-          tone="rose"
-        />
-      </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Button

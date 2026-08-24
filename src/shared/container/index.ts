@@ -11,16 +11,19 @@ const usuarioRepository = new UsuarioRepository(prisma, usuarioFactory);
 const usuarioService = new UsuarioService(usuarioRepository, usuarioFactory);
 const usuarioController = new UsuarioController(usuarioService);
 
+// ========== Módulo Autorização ========== //
+import { AutorizacaoService } from "../../modules/usuario/autorizacao/autorizacao.service";
+
+const autorizacaoService = new AutorizacaoService();
+
 // ========== Módulo Produto ========== //
 import { ProdutoRepository } from "../../modules/produto/produto.repository";
 import { ProdutoService } from "../../modules/produto/produto.service";
 import ProdutoController from "../../modules/produto/produto.controller";
-import ProdutoMapper from "../../modules/produto/produto.mapper";
 
-const produtoMapper = new ProdutoMapper();
 const produtoRepository = new ProdutoRepository(prisma);
-const produtoService = new ProdutoService(produtoRepository);
-const produtoController = new ProdutoController(produtoService, produtoMapper);
+const produtoService = new ProdutoService(produtoRepository, autorizacaoService);
+const produtoController = new ProdutoController(produtoService);
 
 // ========== Módulo Venda ========== //
 import { VendaRepository } from "../../modules/venda/venda.repository";
@@ -30,11 +33,6 @@ import { VendaController } from "../../modules/venda/venda.controller";
 const vendaRepository = new VendaRepository(prisma);
 const vendaService = new VendaService(vendaRepository);
 const vendaController = new VendaController(vendaService);
-
-// ========== Módulo Autorização ========== //
-import { AutorizacaoService } from "../../modules/usuario/autorizacao/autorizacao.service";
-
-const autorizacaoService = new AutorizacaoService();
 
 // ========== Módulo ItemVenda ========== //
 import { ItemVendaRepository } from "../../modules/itemVenda/itemVenda.repository";

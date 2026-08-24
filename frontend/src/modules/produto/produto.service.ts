@@ -1,4 +1,3 @@
-import { ApiError } from "../../shared/http/HttpClient";
 import { listarTolerante } from "../../shared/http/getErrorMessage";
 import type { MessageResponse, ProdutoDTO, ProdutoInput } from "../../shared/types/api";
 import { produtoParaInput } from "./produto.mapper";
@@ -7,23 +6,21 @@ import type { InterfaceProdutoRepository } from "./produto.repository";
 export interface InterfaceProdutoService {
   listar(busca?: string): Promise<ProdutoDTO[]>;
   buscarVendaveis(busca?: string): Promise<ProdutoDTO[]>;
-  listarValidades(): Promise<ProdutoDTO[]>;
+  listarValidades(dias?: number): Promise<ProdutoDTO[]>;
   /** Escolhe entre catálogo completo e catálogo vendável conforme o perfil. */
   listarPorPerfil(catalogoCompleto: boolean, busca?: string): Promise<ProdutoDTO[]>;
   cadastrar(dados: ProdutoInput): Promise<MessageResponse>;
   editar(id: number, dados: ProdutoInput): Promise<MessageResponse>;
   deletar(id: number): Promise<void>;
-  entrada(produto: ProdutoDTO, qtd: number): Promise<string>;
+  entrada(id: number, qtd: number): Promise<MessageResponse>;
+  /**
+   * `PATCH /produtos/:id/baixa` só autoriza ATENDENTE/CAIXA. O botão da tela de
+   * produtos é do GERENTE, então a baixa dele segue por `PUT /produtos/:id`.
+   */
   baixa(produto: ProdutoDTO, qtd: number): Promise<MessageResponse>;
-  alterarValidade(produto: ProdutoDTO, novaValidade: string): Promise<MessageResponse>;
+  alterarValidade(id: number, novaValidade: string): Promise<MessageResponse>;
   bloquear(id: number): Promise<MessageResponse>;
-}
-
-function estaVencido(validade: string | null): boolean {
-  if (!validade) return false;
-  const data = new Date(validade);
-  if (Number.isNaN(data.getTime())) return false;
-  return data.getTime() < Date.now();
+  desbloquear(id: number): Promise<MessageResponse>;
 }
 
 function exigirQuantidade(qtd: number, rotulo: string): void {
@@ -43,8 +40,8 @@ export class ProdutoService implements InterfaceProdutoService {
     return listarTolerante(() => this.repository.buscarVendaveis(busca));
   }
 
-  listarValidades(): Promise<ProdutoDTO[]> {
-    return listarTolerante(() => this.repository.listarValidades());
+  listarValidades(dias?: number): Promise<ProdutoDTO[]> {
+    return listarTolerante(() => this.repository.listarValidades(dias));
   }
 
   listarPorPerfil(catalogoCompleto: boolean, busca = ""): Promise<ProdutoDTO[]> {
@@ -63,81 +60,38 @@ export class ProdutoService implements InterfaceProdutoService {
     return this.repository.deletar(id);
   }
 
-  /**
-   * Entrada de estoque pela rota dedicada (`PATCH /produtos/:id/entrada`), que
-   * mantém as regras de negócio do backend mas não responde quando dá certo.
-   *
-   * As três condições que o backend recusaria são checadas aqui antes de enviar,
-   * então o único desfecho possível de uma requisição sem resposta é sucesso —
-   * o timeout curto do repository é o sinal de que terminou.
-   */
-  async entrada(produto: ProdutoDTO, qtd: number): Promise<string> {
+  entrada(id: number, qtd: number): Promise<MessageResponse> {
     exigirQuantidade(qtd, "entrada");
-
-    if (!produto.isActive) {
-      throw new Error("Produto bloqueado não pode receber entrada de estoque.");
-    }
-    if (estaVencido(produto.validade)) {
-      throw new Error("Produto vencido não pode receber entrada de estoque.");
-    }
-
-    try {
-      const resultado = await this.repository.entrada(produto.id, qtd);
-      return resultado?.message ?? "Entrada registrada.";
-    } catch (error) {
-      if (error instanceof ApiError && error.timeout) {
-        return "Entrada registrada.";
-      }
-      throw error;
-    }
+    return this.repository.entrada(id, qtd);
   }
 
-  /**
-   * Baixa de estoque por `PUT /produtos/:id`.
-   *
-   * A rota dedicada (`PATCH /produtos/:id/baixa`) nunca autoriza ninguém por causa
-   * de um `||` no lugar de `&&`. Como o GERENTE já pode alterar `quantidadeEstoque`
-   * pelo formulário de edição, a baixa é o mesmo `PUT` com o campo recalculado —
-   * nenhuma permissão nova é assumida.
-   */
   baixa(produto: ProdutoDTO, qtd: number): Promise<MessageResponse> {
     exigirQuantidade(qtd, "baixa");
-
     if (!produto.isActive) {
       throw new Error("Produto bloqueado não pode sofrer baixa de estoque.");
     }
     if (produto.quantidadeEstoque < qtd) {
       throw new Error("Quantidade em estoque insuficiente para a baixa.");
     }
-
     return this.repository.editar(produto.id, {
       ...produtoParaInput(produto),
       quantidadeEstoque: produto.quantidadeEstoque - qtd,
     });
   }
 
-  /**
-   * Troca da validade por `PUT /produtos/:id`, pelo mesmo motivo da baixa —
-   * `PATCH /produtos/:id/validade` também recusa todos os perfis.
-   */
-  alterarValidade(produto: ProdutoDTO, novaValidade: string): Promise<MessageResponse> {
+  alterarValidade(id: number, novaValidade: string): Promise<MessageResponse> {
     const data = new Date(novaValidade);
     if (!novaValidade || Number.isNaN(data.getTime())) {
       throw new Error("Data de validade inválida.");
     }
-
-    const fabricacao = produto.dataFabricacao ? new Date(produto.dataFabricacao) : null;
-    if (fabricacao && !Number.isNaN(fabricacao.getTime()) && data <= fabricacao) {
-      throw new Error("A validade deve ser posterior à data de fabricação.");
-    }
-
-    return this.repository.editar(produto.id, {
-      ...produtoParaInput(produto),
-      validade: novaValidade,
-    });
+    return this.repository.alterarValidade(id, novaValidade);
   }
 
   bloquear(id: number): Promise<MessageResponse> {
     return this.repository.bloquear(id);
+  }
+
+  desbloquear(id: number): Promise<MessageResponse> {
+    return this.repository.desbloquear(id);
   }
 }

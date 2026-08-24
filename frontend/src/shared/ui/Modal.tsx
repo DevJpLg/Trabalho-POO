@@ -9,14 +9,15 @@ type Props = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  /** `lg` para formulários de duas colunas, `sm` para confirmações curtas. */
-  tamanho?: "sm" | "md" | "lg";
+  /** `lg` para formulários de duas colunas, `xl` para ficha completa. */
+  tamanho?: "sm" | "md" | "lg" | "xl";
 };
 
 const larguras = {
   sm: "max-w-md",
   md: "max-w-2xl",
   lg: "max-w-3xl",
+  xl: "max-w-6xl",
 } as const;
 
 export function Modal({

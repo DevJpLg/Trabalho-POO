@@ -11,10 +11,10 @@ import { Badge } from "../../../shared/ui/Badge";
 import { Button } from "../../../shared/ui/Button";
 import { Card, SectionTitle } from "../../../shared/ui/Card";
 import { data as formatarData, dataHora, diasAte } from "../../../shared/ui/format";
-import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
-import { StatCard } from "../../../shared/ui/StatCard";
+import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { IconAlert, IconCheck, IconClipboard, IconFile, IconRefresh, IconShield } from "../../../shared/ui/icons";
+import { IconAlert, IconCheck, IconRefresh } from "../../../shared/ui/icons";
 import { PrescricaoRepository } from "../../prescricao/prescricao.repository";
 import { PrescricaoService } from "../../prescricao/prescricao.service";
 import { VendaRepository } from "../venda.repository";
@@ -73,45 +73,16 @@ export function AvaliacoesPage() {
   const receitasDaVenda = (vendaId: number | null): PrescricaoDTO[] =>
     vendaId == null ? [] : receitas.filter((receita) => Number(receita.vendaId) === vendaId);
 
-  const semPrescricao = fila.filter((venda) => receitasDaVenda(venda.id).length === 0).length;
-  const vencidas = receitas.filter((receita) => {
-    const dias = diasAte(receita.dataValidade);
-    return dias !== null && dias < 0;
-  }).length;
-
   return (
     <div>
-      <PageHeader
-        description="Vendas retidas para validação farmacêutica e as prescrições apresentadas para cada uma."
-        actions={
+      <BarraListagem
+        mostrarBusca={false}
+        acao={
           <Button type="button" variant="secondary" onClick={() => void carregar()}>
             <IconRefresh size={16} /> Atualizar
           </Button>
         }
       />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Vendas em avaliação"
-          value={fila.length}
-          icon={<IconClipboard />}
-          tone="red"
-        />
-        <StatCard
-          label="Sem prescrição"
-          value={semPrescricao}
-          icon={<IconAlert />}
-          tone="rose"
-        />
-        <StatCard
-          label="Prescrições cadastradas"
-          value={receitas.length}
-          icon={<IconFile />}
-          tone="green"
-          to="/prescricoes"
-        />
-        <StatCard label="Prescrições vencidas" value={vencidas} icon={<IconShield />} tone="mint" />
-      </div>
 
       {error ? (
         <div className="mb-4">

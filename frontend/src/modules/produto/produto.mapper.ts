@@ -1,13 +1,7 @@
 import { paraInputDate } from "../../shared/ui/format";
 import type { ProdutoDTO, ProdutoInput } from "../../shared/types/api";
 
-/**
- * Converte o produto devolvido pela API no formato aceito por `POST`/`PUT /produtos`.
- *
- * Serve tanto para preencher o formulário de edição quanto para as operações que
- * precisam reenviar o produto inteiro alterando um campo só (baixa de estoque e
- * troca de validade — ver `produto.service`).
- */
+/** Converte o produto devolvido pela API no formato do formulário de cadastro/edição. */
 export function produtoParaInput(produto: ProdutoDTO): ProdutoInput {
   return {
     nome: produto.nome,
@@ -18,7 +12,7 @@ export function produtoParaInput(produto: ProdutoDTO): ProdutoInput {
     preco: Number(produto.preco),
     descricao: produto.descricao ?? "",
     concentracao: produto.concentracao ?? "",
-    formulaFarmaceutica: produto.formulaFarmaceutica ?? "",
+    formaFarmaceutica: produto.formaFarmaceutica ?? "",
     numeroRegAnvisa: produto.numeroRegAnvisa ?? "",
     tarja: produto.tarja ?? "",
     classificacao: produto.classificacao,

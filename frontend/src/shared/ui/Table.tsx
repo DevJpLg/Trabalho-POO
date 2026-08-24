@@ -30,14 +30,14 @@ export function Table<T>({
   if (rows.length === 0) {
     if (empty) return <>{empty}</>;
     return (
-      <div className="rounded-[25px] bg-surface px-6 py-16 text-center text-sm text-ink-muted shadow-card ring-1 ring-line/60">
+      <div className="rounded-[15px] bg-surface px-6 py-16 text-center text-sm text-ink-muted shadow-card ring-1 ring-line/60">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-[25px] bg-surface shadow-card ring-1 ring-line/60">
+    <div className="overflow-hidden rounded-[15px] bg-surface shadow-card ring-1 ring-line/60">
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
           <thead>

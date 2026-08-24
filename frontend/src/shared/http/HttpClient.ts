@@ -7,9 +7,8 @@
  *  - normalizar a resposta de erro da API (`{ message }` ou `{ error }`);
  *  - abortar requisições que passem do tempo limite.
  *
- * O backend tem endpoints que não respondem no caminho de sucesso
- * (ex.: `PATCH /produtos/:id/entrada`). Por isso todo request tem timeout:
- * sem ele a UI ficaria presa em "carregando" para sempre.
+ * Todo request tem timeout: sem ele a UI ficaria presa em "carregando"
+ * se a API não responder.
  */
 
 import { corrigirAcentuacao, corrigirAcentuacaoProfunda } from "../text/encoding";

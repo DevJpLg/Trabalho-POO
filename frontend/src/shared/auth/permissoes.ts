@@ -17,13 +17,13 @@ import type { Perfil } from "../types/api";
 /** `GET|POST|PUT|DELETE /api/usuarios` → `usuarioService` exige GERENTE. */
 export const PERFIS_GERENCIAM_USUARIOS: Perfil[] = ["GERENTE"];
 
-/** `GET /api/produtos` e o CRUD de produto → `produtoService` exige GERENTE. */
+/** CRUD de produto e `PATCH /api/produtos/:id/entrada|validade` → exigem GERENTE. */
 export const PERFIS_GERENCIAM_PRODUTOS: Perfil[] = ["GERENTE"];
 
 /** `PATCH /api/produtos/:id/entrada` → exige GERENTE. */
 export const PERFIS_DAO_ENTRADA_ESTOQUE: Perfil[] = ["GERENTE"];
 
-/** `GET /api/produtos/validades` e `PATCH /api/produtos/:id/bloquear` → exigem FARMACEUTICO. */
+/** `GET /api/produtos/validades` e `PATCH /api/produtos/:id/bloquear|desbloquear` → exigem FARMACEUTICO. */
 export const PERFIS_CONTROLAM_VALIDADE: Perfil[] = ["FARMACEUTICO"];
 
 /** `GET|POST|PATCH|DELETE /api/itens-venda/...` → exige ATENDENTE ou CAIXA. */
@@ -75,8 +75,8 @@ export function podeGerenciarPrescricoes(perfil?: Perfil): boolean {
 }
 
 /**
- * O GERENTE lista tudo por `GET /api/produtos`; os demais perfis só enxergam o
- * catálogo vendável por `GET /api/produtos/busca` (com estoque, na validade e ativo).
+ * O GERENTE lista o catálogo completo por `GET /api/produtos`. Os demais perfis
+ * usam `GET /api/produtos/busca` (ativo, na validade e com estoque).
  */
 export function usaCatalogoCompleto(perfil?: Perfil): boolean {
   return podeGerenciarProdutos(perfil);

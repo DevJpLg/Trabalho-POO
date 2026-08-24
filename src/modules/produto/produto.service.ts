@@ -1,7 +1,7 @@
 import InterfaceProdutoRepository from "./produto.repository";
 import InterfaceAutorizacaoService from "../usuario/autorizacao/autorizacao.service";
 import Produto, { Classificacao, DadosProduto } from "./index";
-import Usuario, { Perfil } from "../usuario";
+import Usuario from "../usuario";
 
 export default interface InterfaceProdutoService {
     cadastrarProduto(usuarioLogado: Usuario, dados: DadosProduto): Promise<boolean | Error>;
@@ -49,10 +49,10 @@ export class ProdutoService implements InterfaceProdutoService {
                 if(!dados.numeroRegAnvisa)       { return new Error("Número de registro ANVISA inválido"); }
                 if(!dados.tarja)                 { return new Error("Tarja inválida"); }
                 if(!dados.classeControle)        { return new Error("Classe de controle inválida"); }
-                if(!dados.retencaoReceita)       { return new Error("Retenção de receita inválida"); }
+                if(typeof dados.retencaoReceita !== "boolean") { return new Error("Retenção de receita inválida"); }
                 if(!dados.validadeReceita)       { return new Error("Validade de receita inválida"); }
                 if(!dados.quantidadeMaxima)      { return new Error("Quantidade máxima inválida"); }
-                if(!dados.generico)              { return new Error("Generico inválido"); }
+                if(typeof dados.generico !== "boolean") { return new Error("Generico inválido"); }
             }
 
             const produtoCriado = Produto.criarProduto(dados);
@@ -80,8 +80,8 @@ export class ProdutoService implements InterfaceProdutoService {
             }
 
             const resultado = await this.repository.listarProdutos(busca);
-            if(!resultado || resultado === null || resultado.length === 0) {
-                return new Error("Nenhum produto encontrado");
+            if (resultado === null) {
+                return [];
             }
             return resultado;
         } catch (error) {
@@ -94,8 +94,8 @@ export class ProdutoService implements InterfaceProdutoService {
     public async buscarProduto(usuarioLogado: Usuario, busca: string): Promise<Produto[] | Error> {
         try {
             const resultado = await this.repository.buscarProduto(busca);
-            if(!resultado || resultado === null || resultado.length === 0) {
-                return new Error("Nenhum produto encontrado");
+            if (resultado === null) {
+                return [];
             }
             return resultado;
         } catch (error) {
@@ -123,10 +123,10 @@ export class ProdutoService implements InterfaceProdutoService {
                 if(!dados.numeroRegAnvisa)       { return new Error("Número de registro ANVISA inválido"); }
                 if(!dados.tarja)                 { return new Error("Tarja inválida"); }
                 if(!dados.classeControle)        { return new Error("Classe de controle inválida"); }
-                if(!dados.retencaoReceita)       { return new Error("Retenção de receita inválida"); }
+                if(typeof dados.retencaoReceita !== "boolean") { return new Error("Retenção de receita inválida"); }
                 if(!dados.validadeReceita)       { return new Error("Validade de receita inválida"); }
                 if(!dados.quantidadeMaxima)      { return new Error("Quantidade máxima inválida"); }
-                if(!dados.generico)              { return new Error("Generico inválido"); }
+                if(typeof dados.generico !== "boolean") { return new Error("Generico inválido"); }
             }
 
             const codigoEmUso = await this.repository.buscarProdutoPorCodigoBarras(dados.codigoBarras);
@@ -289,8 +289,8 @@ export class ProdutoService implements InterfaceProdutoService {
             dataLimite.setDate(dataLimite.getDate() + dias); //Seta o tempo limite para até 1 mês a partir do hoje
 
             const resultado = await this.repository.listarProdutosPorValidade(dataLimite);
-            if(!resultado || resultado === null || resultado.length === 0) {
-                return new Error("Nenhum produto encontrado");
+            if (resultado === null) {
+                return [];
             }
             return resultado;
         } catch (error) {
@@ -312,7 +312,7 @@ export class ProdutoService implements InterfaceProdutoService {
             }
 
             const statusAtualProduto = produtoExistente.getIsActive();
-            if(statusAtualProduto) {
+            if(!statusAtualProduto) {
                 return new Error("Produto já está bloqueado");
             }
 
@@ -339,7 +339,7 @@ export class ProdutoService implements InterfaceProdutoService {
             } 
             
             const statusAtualProduto = produtoExistente.getIsActive();
-            if(!statusAtualProduto) {
+            if(statusAtualProduto) {
                 return new Error("Produto já está desbloqueado");
             }
 
@@ -380,7 +380,7 @@ export class ProdutoService implements InterfaceProdutoService {
             }
 
             const produtoQuantidadeMaxima = produto.getQuantidadeMaxima();
-            if(produtoQuantidadeMaxima === null || produtoQuantidadeMaxima <= 0 || quantidadeDesejada > produtoQuantidadeMaxima) {
+            if(produtoQuantidadeMaxima !== null && quantidadeDesejada > produtoQuantidadeMaxima) {
                 return false;
             }
 
