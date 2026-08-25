@@ -6,15 +6,11 @@ import { BrandLogo } from "./BrandLogo";
 import { IconButton } from "./Button";
 import { filhosVisiveis, navItems, pageTitles, perfilPode, type NavItem } from "./nav";
 import { PageTitleContext } from "./usePageTitle";
-import { IconChevronDown, IconClose, IconLogout, IconMenu, IconSearch, IconUser } from "./icons";
+import { IconChevronDown, IconClose, IconLogout, IconMenu, IconSearch } from "./icons";
 
-const iniciais = (nome: string) =>
-  nome
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? "")
-    .join("");
+function IconeUsuario({ className = "text-sm" }: { className?: string }) {
+  return <i className={`fa-solid fa-user ${className}`} aria-hidden />;
+}
 
 function UserMenu() {
   const { logout, usuario } = useAuth();
@@ -52,7 +48,7 @@ function UserMenu() {
         aria-haspopup="menu"
         onClick={() => setOpen((current) => !current)}
       >
-        {usuario ? iniciais(usuario.nome) : <IconUser size={18} />}
+        <IconeUsuario className="text-[15px]" />
       </button>
 
       {open ? (
@@ -210,17 +206,19 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {usuario ? (
-        <div className="mt-2 flex items-center gap-3 rounded-2xl bg-surface-muted px-3 py-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-green text-xs font-bold text-white">
-            {iniciais(usuario.nome)}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-ink">{usuario.nome}</p>
-            <p className="truncate text-xs text-ink-muted">{perfilLabel[usuario.perfil]}</p>
+        <div className="mt-auto shrink-0 border-t border-line pt-3">
+          <div className="flex items-center gap-3 rounded-2xl bg-surface-muted px-3 py-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-green text-white">
+              <IconeUsuario className="text-[13px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{usuario.nome}</p>
+              <p className="truncate text-xs text-ink-muted">{perfilLabel[usuario.perfil]}</p>
+            </div>
+            <IconButton label="Sair" tone="danger" onClick={logout}>
+              <IconLogout size={17} />
+            </IconButton>
           </div>
-          <IconButton label="Sair" tone="danger" onClick={logout}>
-            <IconLogout size={17} />
-          </IconButton>
         </div>
       ) : null}
     </div>
@@ -251,13 +249,11 @@ export function AppLayout() {
 
   return (
     <PageTitleContext.Provider value={titleValue}>
-      <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[264px_1fr]">
-        {/* O wrapper carrega o fundo (acompanha a altura da página) e a nav fica presa no topo. */}
-        <div className="hidden border-r border-line bg-surface lg:block">
-          <aside className="sticky top-0 h-screen">
-            <SidebarNav />
-          </aside>
-        </div>
+      <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[264px_minmax(0,1fr)]">
+        <aside className="fixed inset-y-0 left-0 z-20 hidden h-full w-[264px] flex-col border-r border-line bg-surface lg:flex">
+          <SidebarNav />
+        </aside>
+        <div className="hidden lg:block" aria-hidden />
 
         {menuOpen ? (
           <div className="fixed inset-0 z-40 lg:hidden">
@@ -281,8 +277,8 @@ export function AppLayout() {
           </div>
         ) : null}
 
-        <div className="flex min-h-screen flex-col">
-          <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-line/70 bg-canvas/85 px-5 py-4 backdrop-blur-md sm:px-8">
+        <div className="flex min-h-screen min-w-0 flex-col">
+          <header className="sticky top-0 z-30 flex min-w-0 items-center justify-between gap-4 border-b border-line/70 bg-canvas/85 px-5 py-4 backdrop-blur-md sm:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -299,9 +295,9 @@ export function AppLayout() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5">
               {usuario ? (
-                <form onSubmit={onSearch} className="hidden md:block">
+                <form onSubmit={onSearch} className="hidden min-w-0 md:block">
                   <label className="relative block">
                     <span className="sr-only">Buscar produtos</span>
                     <IconSearch
@@ -312,7 +308,7 @@ export function AppLayout() {
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Buscar produto..."
-                      className="h-11 w-56 rounded-full bg-surface pl-11 pr-4 text-sm text-ink shadow-card outline-none ring-1 ring-line transition-all placeholder:text-ink-muted/80 hover:ring-ink-muted/35 focus:w-64 focus:ring-2 focus:ring-brand-green/45 lg:w-72 lg:focus:w-80"
+                      className="h-11 w-56 max-w-full rounded-full bg-surface pl-11 pr-4 text-sm text-ink shadow-card outline-none ring-1 ring-line transition-all placeholder:text-ink-muted/80 hover:ring-ink-muted/35 focus:ring-2 focus:ring-brand-green/45 lg:w-72"
                     />
                   </label>
                 </form>
@@ -322,7 +318,7 @@ export function AppLayout() {
             </div>
           </header>
 
-          <main className="flex-1 px-5 pb-12 pt-6 sm:px-8">
+          <main className="min-w-0 flex-1 px-5 pb-12 pt-6 sm:px-8">
             <Outlet />
           </main>
         </div>

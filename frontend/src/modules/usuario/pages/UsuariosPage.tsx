@@ -16,7 +16,8 @@ import { Card } from "../../../shared/ui/Card";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
+import { pedirConfirmacao, toastErro, toastInfo, toastSucesso } from "../../../shared/ui/feedback";
+import { EmptyState, LoadingState, PageHeader } from "../../../shared/ui/PageHeader";
 import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
@@ -25,7 +26,6 @@ import {
   IconPlus,
   IconShield,
   IconTrash,
-  IconUser,
   IconUsers,
 } from "../../../shared/ui/icons";
 import { UsuarioRepository } from "../usuario.repository";
@@ -51,9 +51,9 @@ const emptyForm: UsuarioInput = {
 };
 
 /**
- * A aba fica visível para todos os perfis, mas o que ela mostra depende de quem
- * entrou: o gerente administra a equipe inteira; os demais veem só os próprios
- * dados de acesso, porque `GET /api/usuarios` é restrito ao gerente no backend.
+ * A aba fica no menu só para o gerente, que administra a equipe. Se outro perfil
+ * abrir `/usuarios` direto, vê só os próprios dados — `GET /api/usuarios` é
+ * restrito ao gerente no backend.
  */
 export function UsuariosPage() {
   usePageTitle("Usuários");
@@ -71,9 +71,6 @@ function GestaoDeUsuarios() {
   const [busca, setBusca] = useState("");
   const [rows, setRows] = useState<UsuarioDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UsuarioDTO | null>(null);
   const [form, setForm] = useState<UsuarioInput>(emptyForm);
@@ -82,8 +79,6 @@ function GestaoDeUsuarios() {
   const carregar = useCallback(
     async (termo: string) => {
       setLoading(true);
-      setError(null);
-      setAviso(null);
       try {
         setRows(await service.listar(termo));
       } catch (err) {
@@ -92,12 +87,11 @@ function GestaoDeUsuarios() {
         // para cadastrar o segundo e sair desse estado.
         if (err instanceof ApiError && err.status >= 500 && usuarioLogado) {
           setRows([usuarioLogado]);
-          setAviso(
-            "A API só devolve a listagem quando há mais de um usuário cadastrado. " +
-              "Exibindo apenas o seu usuário — cadastre outro para a lista voltar ao normal.",
+          toastInfo(
+            "A API só devolve a listagem quando há mais de um usuário cadastrado. Exibindo apenas o seu usuário — cadastre outro para a lista voltar ao normal.",
           );
         } else {
-          setError(getErrorMessage(err));
+          toastErro(getErrorMessage(err));
           setRows([]);
         }
       } finally {
@@ -136,8 +130,6 @@ function GestaoDeUsuarios() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
-    setError(null);
-    setSuccess(null);
     try {
       const payload: UsuarioInput = {
         nome: form.nome,
@@ -155,11 +147,11 @@ function GestaoDeUsuarios() {
         ? await service.editar(editing.id, payload)
         : await service.cadastrar(payload);
 
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       fecharModal();
       await carregar(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -167,19 +159,22 @@ function GestaoDeUsuarios() {
 
   async function onDelete(usuario: UsuarioDTO) {
     if (usuario.id === usuarioLogado?.id) {
-      setError("Você não pode excluir o próprio usuário enquanto está logado com ele.");
+      toastErro("Você não pode excluir o próprio usuário enquanto está logado com ele.");
       return;
     }
-    if (!confirm(`Excluir o usuário ${usuario.nome}?`)) return;
+    const confirmou = await pedirConfirmacao({
+      titulo: "Excluir usuário?",
+      texto: `O usuário “${usuario.nome}” perderá o acesso ao painel. Esta ação não pode ser desfeita.`,
+      confirmar: "Excluir",
+    });
+    if (!confirmou) return;
 
-    setError(null);
-    setSuccess(null);
     try {
       await service.deletar(usuario.id);
-      setSuccess("Usuário removido.");
+      toastSucesso("Usuário removido.");
       await carregar(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     }
   }
 
@@ -196,22 +191,6 @@ function GestaoDeUsuarios() {
           </Button>
         }
       />
-
-      {error ? (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      ) : null}
-      {aviso ? (
-        <div className="mb-4">
-          <Alert tone="info">{aviso}</Alert>
-        </div>
-      ) : null}
-      {success ? (
-        <div className="mb-4">
-          <Alert tone="success">{success}</Alert>
-        </div>
-      ) : null}
 
       {loading ? (
         <LoadingState />
@@ -239,8 +218,8 @@ function GestaoDeUsuarios() {
           }
           columns={[
             { key: "id", header: "ID", render: (usuario) => usuario.id },
-            { key: "nome", header: "Nome", render: (usuario) => usuario.nome },
-            { key: "email", header: "E-mail", render: (usuario) => usuario.email },
+            { key: "nome", header: "Nome", render: (usuario) => <span className="truncate">{usuario.nome}</span> },
+            { key: "email", header: "E-mail", render: (usuario) => <span className="truncate">{usuario.email}</span> },
             {
               key: "perfil",
               header: "Perfil",
@@ -254,7 +233,6 @@ function GestaoDeUsuarios() {
               key: "acoes",
               header: "Ações",
               fim: true,
-              className: "min-w-24",
               render: (usuario) => (
                 <RowActions>
                   <IconButton label="Editar usuário" onClick={() => openEdit(usuario)}>
@@ -353,21 +331,14 @@ function MeuAcesso() {
     );
   }
 
-  const iniciais = usuario.nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? "")
-    .join("");
-
   return (
     <div>
       <PageHeader description="Os seus dados de acesso na farmácia." />
 
       <Card className="mb-4">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-brand-green-soft text-xl font-bold text-brand-green">
-            {iniciais || <IconUser size={26} />}
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-brand-green-soft text-brand-green">
+            <i className="fa-solid fa-user text-xl" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-semibold tracking-tight text-ink">{usuario.nome}</p>

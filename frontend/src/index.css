@@ -118,6 +118,8 @@ html,
 body,
 #root {
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 html {
@@ -170,4 +172,134 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* SweetAlert2 — toasts no canto e diálogos de confirmação no centro. */
+.swal2-container {
+  z-index: 20000;
+  position: fixed;
+  inset: 0;
+}
+
+.swal2-popup.swal-toast {
+  font-family: var(--font-sans);
+  padding: 0.85rem 1rem !important;
+  border-radius: 16px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--sombra-pop);
+  border: 1px solid var(--color-line);
+}
+
+.swal2-popup.swal-toast .swal-toast-titulo {
+  margin: 0 0.5rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  max-width: 22rem;
+  color: var(--color-ink);
+}
+
+.swal2-popup.swal-toast .swal2-timer-progress-bar {
+  background: color-mix(in srgb, var(--color-brand-green) 45%, transparent);
+}
+
+.swal2-popup.swal-toast:has(.swal2-error) .swal2-timer-progress-bar {
+  background: var(--color-brand-red);
+}
+
+.swal2-popup.swal-dialogo {
+  font-family: var(--font-sans);
+  width: 36rem !important;
+  max-width: calc(100vw - 2rem);
+  min-height: 18rem;
+  padding: 2.5rem 2.75rem 2rem !important;
+  border-radius: 25px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--sombra-pop);
+}
+
+.swal-dialogo-icone {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.swal-dialogo-titulo {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: var(--color-ink) !important;
+  line-height: 1.3;
+}
+
+.swal-dialogo-texto {
+  font-size: 1rem !important;
+  color: var(--color-ink-muted) !important;
+  line-height: 1.55;
+  margin-top: 0.5rem !important;
+}
+
+.swal-dialogo-acoes {
+  width: 100%;
+  margin-top: 1.75rem !important;
+  gap: 0.6rem;
+  flex-wrap: nowrap !important;
+  justify-content: center !important;
+}
+
+.swal-btn-perigo,
+.swal-btn-confirmar,
+.swal-btn-cancelar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.5rem;
+  border-radius: 999px;
+  padding: 0.7rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.swal-btn-perigo {
+  border: 0;
+  background: var(--color-brand-red);
+  color: #fff;
+  box-shadow: var(--sombra-brand);
+}
+
+.swal-btn-perigo:hover {
+  background: var(--color-brand-red-dark);
+}
+
+.swal-btn-confirmar {
+  border: 0;
+  background: var(--color-brand-green);
+  color: #fff;
+}
+
+.swal-btn-confirmar:hover {
+  background: var(--color-brand-green-dark);
+}
+
+.swal-btn-cancelar {
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.swal-btn-cancelar:hover {
+  background: var(--color-surface-hover);
+}
+
+.swal-btn-perigo:active,
+.swal-btn-confirmar:active,
+.swal-btn-cancelar:active {
+  transform: scale(0.97);
 }

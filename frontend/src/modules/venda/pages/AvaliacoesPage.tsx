@@ -11,10 +11,11 @@ import { Badge } from "../../../shared/ui/Badge";
 import { Button } from "../../../shared/ui/Button";
 import { Card, SectionTitle } from "../../../shared/ui/Card";
 import { data as formatarData, dataHora, diasAte } from "../../../shared/ui/format";
+import { toastErro } from "../../../shared/ui/feedback";
 import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
 import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
-import { IconAlert, IconCheck, IconRefresh } from "../../../shared/ui/icons";
+import { IconCheck, IconRefresh } from "../../../shared/ui/icons";
 import { PrescricaoRepository } from "../../prescricao/prescricao.repository";
 import { PrescricaoService } from "../../prescricao/prescricao.service";
 import { VendaRepository } from "../venda.repository";
@@ -41,18 +42,14 @@ export function AvaliacoesPage() {
   const [fila, setFila] = useState<VendaDTO[]>([]);
   const [receitas, setReceitas] = useState<PrescricaoDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [avisoPrescricoes, setAvisoPrescricoes] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    setAvisoPrescricoes(null);
 
     try {
       setFila(await vendas.listarEmAvaliacao());
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
       setFila([]);
     }
 
@@ -60,7 +57,7 @@ export function AvaliacoesPage() {
       setReceitas(await prescricoes.listar());
     } catch (err) {
       setReceitas([]);
-      setAvisoPrescricoes(getErrorMessage(err));
+      toastErro(`Não foi possível carregar as prescrições: ${getErrorMessage(err)}`);
     }
 
     setLoading(false);
@@ -84,18 +81,6 @@ export function AvaliacoesPage() {
         }
       />
 
-      {error ? (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      ) : null}
-
-      {avisoPrescricoes ? (
-        <div className="mb-4">
-          <Alert tone="info">Não foi possível carregar as prescrições: {avisoPrescricoes}</Alert>
-        </div>
-      ) : null}
-
       {loading ? (
         <LoadingState label="Carregando fila de avaliação..." />
       ) : fila.length === 0 ? (
@@ -105,7 +90,7 @@ export function AvaliacoesPage() {
           descricao="Nenhuma venda aguardando validação farmacêutica no momento."
         />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
           {fila.map((venda) => {
             const daVenda = receitasDaVenda(venda.id);
             return (

@@ -87,6 +87,7 @@ CREATE TABLE produtos (
   preco               DECIMAL(10,2)  NOT NULL,
   dataFabricacao      DATETIME       NULL,
   quantidadeMaxima    INT            NULL,
+  isActive            BOOLEAN        NOT NULL DEFAULT TRUE,
 
   PRIMARY KEY (id),
   UNIQUE KEY uq_produtos_codigoBarras (codigoBarras)

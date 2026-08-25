@@ -16,11 +16,12 @@ import {
 } from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
 import { Button, IconButton } from "../../../shared/ui/Button";
-import { data as formatarData, diasAte, moeda } from "../../../shared/ui/format";
+import { data as formatarData, diasAte, paraInputDate } from "../../../shared/ui/format";
 import { Checkbox, Input, Textarea } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { DateInput } from "../../../shared/ui/DateInput";
 import { Modal } from "../../../shared/ui/Modal";
+import { pedirConfirmacao, toastErro, toastSucesso } from "../../../shared/ui/feedback";
 import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
 import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
@@ -28,11 +29,12 @@ import { usePageTitle } from "../../../shared/ui/usePageTitle";
 import {
   IconArrowDown,
   IconCalendar,
-  IconEye,
   IconLock,
   IconPencil,
   IconPills,
   IconPlus,
+  IconSquare,
+  IconSquareCheck,
   IconTrash,
   IconUnlock,
 } from "../../../shared/ui/icons";
@@ -274,12 +276,11 @@ function FormularioProduto({
   );
 }
 
-/** A tela serve três rotas; o modo decide a fonte de dados e o texto de apoio. */
-type ModoLista = "catalogo" | "entrada" | "validades";
+/** A tela serve catálogo e controle de validades; entrada de estoque é só modal. */
+type ModoLista = "catalogo" | "validades";
 
 function modoDaRota(pathname: string): ModoLista {
   if (pathname.endsWith("/validades")) return "validades";
-  if (pathname.endsWith("/entrada")) return "entrada";
   return "catalogo";
 }
 
@@ -298,11 +299,9 @@ export function ProdutosPage() {
   const titulo =
     modo === "validades"
       ? "Controle de Validades"
-      : modo === "entrada"
-        ? "Entrada de Produtos"
-        : catalogoCompleto
-          ? "Todos os Produtos"
-          : "Consultar Produtos";
+      : catalogoCompleto
+        ? "Todos os Produtos"
+        : "Consultar Produtos";
   usePageTitle(titulo);
 
   const service = useMemo(() => new ProdutoService(new ProdutoRepository(http)), [http]);
@@ -310,8 +309,6 @@ export function ProdutosPage() {
   const [busca, setBusca] = useState(params.get("q") ?? "");
   const [rows, setRows] = useState<ProdutoDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ProdutoDTO | null>(null);
@@ -319,13 +316,14 @@ export function ProdutosPage() {
   const [saving, setSaving] = useState(false);
 
   const [acaoEntrada, setAcaoEntrada] = useState<ProdutoDTO | null>(null);
+  const [acaoValidade, setAcaoValidade] = useState<ProdutoDTO | null>(null);
   const [valorAcao, setValorAcao] = useState("");
+  const [novaValidade, setNovaValidade] = useState("");
   const [detalhe, setDetalhe] = useState<ProdutoDTO | null>(null);
 
   const load = useCallback(
     async (termo: string) => {
       setLoading(true);
-      setError(null);
       try {
         const lista =
           modo === "validades"
@@ -333,7 +331,7 @@ export function ProdutosPage() {
             : await service.listarPorPerfil(catalogoCompleto, termo);
         setRows(lista);
       } catch (err) {
-        setError(getErrorMessage(err));
+        toastErro(getErrorMessage(err));
         setRows([]);
       } finally {
         setLoading(false);
@@ -363,52 +361,56 @@ export function ProdutosPage() {
   function abrirEntrada(produto: ProdutoDTO) {
     setAcaoEntrada(produto);
     setValorAcao("");
-    setError(null);
+  }
+
+  function abrirValidade(produto: ProdutoDTO) {
+    setAcaoValidade(produto);
+    setNovaValidade(paraInputDate(produto.validade));
   }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
-    setError(null);
-    setSuccess(null);
     try {
       const resultado = editing
         ? await service.editar(editing.id, form)
         : await service.cadastrar(form);
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       setModalOpen(false);
       await load(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
   async function onDelete(produto: ProdutoDTO) {
-    if (!confirm(`Excluir o produto ${produto.nome}?`)) return;
-    setError(null);
-    setSuccess(null);
+    setDetalhe(null);
     try {
+      const confirmou = await pedirConfirmacao({
+        titulo: "Excluir produto?",
+        texto: `O produto “${produto.nome}” será removido do catálogo. Esta ação não pode ser desfeita.`,
+        confirmar: "Excluir",
+      });
+      if (!confirmou) return;
       await service.deletar(produto.id);
-      setSuccess("Produto removido.");
+      toastSucesso("Produto removido.");
       await load(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     }
   }
 
   async function onBloquear(produto: ProdutoDTO) {
-    setError(null);
-    setSuccess(null);
     try {
       const resultado = produto.isActive
         ? await service.bloquear(produto.id)
         : await service.desbloquear(produto.id);
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       await load(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     }
   }
 
@@ -417,16 +419,32 @@ export function ProdutosPage() {
     if (!acaoEntrada) return;
 
     setSaving(true);
-    setError(null);
-    setSuccess(null);
     try {
       const resultado = await service.entrada(acaoEntrada.id, Number(valorAcao));
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       setAcaoEntrada(null);
       setValorAcao("");
       await load(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onValidadeSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!acaoValidade) return;
+
+    setSaving(true);
+    try {
+      const resultado = await service.alterarValidade(acaoValidade.id, novaValidade);
+      toastSucesso(resultado.message);
+      setAcaoValidade(null);
+      setNovaValidade("");
+      await load(busca);
+    } catch (err) {
+      toastErro(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -460,23 +478,13 @@ export function ProdutosPage() {
         </div>
       ) : null}
 
-      {error ? (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      ) : null}
-      {success ? (
-        <div className="mb-4">
-          <Alert tone="success">{success}</Alert>
-        </div>
-      ) : null}
-
       {loading ? (
         <LoadingState />
       ) : (
         <Table
           rows={rows}
           rowKey={(produto) => produto.id}
+          onRowClick={setDetalhe}
           empty={
             modo === "validades" ? (
               <EmptyState
@@ -506,21 +514,26 @@ export function ProdutosPage() {
             )
           }
           columns={[
-            { key: "id", header: "ID", render: (produto) => produto.id },
+            {
+              key: "id",
+              header: "ID",
+              largura: "2.75rem",
+              render: (produto) => produto.id,
+            },
             {
               key: "nome",
               header: "Produto",
-              className: "min-w-56",
               render: (produto) => (
-                <div>
-                  <p className="font-semibold">{produto.nome}</p>
-                  <p className="text-xs text-ink-muted">{produto.codigoBarras}</p>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{produto.nome}</p>
+                  <p className="truncate text-xs text-ink-muted">{produto.codigoBarras}</p>
                 </div>
               ),
             },
             {
               key: "classificacao",
               header: "Classificação",
+              largura: "7.5rem",
               render: (produto) => (
                 <Badge tone={classificacaoTone(produto.classificacao)}>
                   {classificacaoLabel[produto.classificacao]}
@@ -530,9 +543,12 @@ export function ProdutosPage() {
             {
               key: "estoque",
               header: "Estoque",
+              largura: "4.5rem",
               render: (produto) => (
                 <span
-                  className={produto.quantidadeEstoque <= 5 ? "font-semibold text-brand-red" : ""}
+                  className={`tabular-nums ${
+                    produto.quantidadeEstoque <= 5 ? "font-semibold text-brand-red" : ""
+                  }`}
                 >
                   {produto.quantidadeEstoque}
                 </span>
@@ -541,41 +557,44 @@ export function ProdutosPage() {
             {
               key: "validade",
               header: "Validade",
+              largura: "6.75rem",
               render: (produto) => {
                 const dias = diasAte(produto.validade);
                 const critico = dias !== null && dias <= 30;
                 return (
-                  <span className={critico ? "font-semibold text-brand-red" : "text-ink"}>
+                  <span
+                    className={`whitespace-nowrap tabular-nums ${
+                      critico ? "font-semibold text-brand-red" : "text-ink"
+                    }`}
+                  >
                     {formatarData(produto.validade)}
-                    {dias !== null && dias < 0 ? " · vencido" : ""}
                   </span>
                 );
               },
             },
             {
-              key: "preco",
-              header: "Preço",
-              render: (produto) => moeda(produto.preco),
-            },
-            {
               key: "ativo",
-              header: "Status",
-              render: (produto) => (
-                <Badge tone={produto.isActive ? "green" : "red"}>
-                  {produto.isActive ? "Ativo" : "Bloqueado"}
-                </Badge>
-              ),
+              header: "",
+              largura: "2.5rem",
+              className: "text-center",
+              render: (produto) =>
+                produto.isActive ? (
+                  <span className="inline-flex text-brand-green" title="Ativo">
+                    <IconSquareCheck size={18} />
+                  </span>
+                ) : (
+                  <span className="inline-flex text-ink-muted" title="Bloqueado">
+                    <IconSquare size={18} />
+                  </span>
+                ),
             },
             {
               key: "acoes",
               header: "Ações",
               fim: true,
-              className: "min-w-40",
+              largura: "9.5rem",
               render: (produto: ProdutoDTO) => (
                 <RowActions>
-                  <IconButton label="Detalhes do produto" onClick={() => setDetalhe(produto)}>
-                    <IconEye size={17} />
-                  </IconButton>
                   {gerenciaProdutos ? (
                     <IconButton label="Editar produto" onClick={() => openEdit(produto)}>
                       <IconPencil size={17} />
@@ -592,7 +611,17 @@ export function ProdutosPage() {
                   ) : null}
                   {controlaValidade ? (
                     <IconButton
+                      label="Alterar validade"
+                      tone="success"
+                      onClick={() => abrirValidade(produto)}
+                    >
+                      <IconCalendar size={17} />
+                    </IconButton>
+                  ) : null}
+                  {controlaValidade ? (
+                    <IconButton
                       label={produto.isActive ? "Bloquear produto" : "Desbloquear produto"}
+                      tone={produto.isActive ? "warning" : "success"}
                       onClick={() => void onBloquear(produto)}
                     >
                       {produto.isActive ? <IconLock size={17} /> : <IconUnlock size={17} />}
@@ -692,6 +721,38 @@ export function ProdutosPage() {
             required
             value={valorAcao}
             onChange={(event) => setValorAcao(event.target.value)}
+          />
+        </form>
+      </Modal>
+
+      <Modal
+        open={acaoValidade !== null}
+        title={acaoValidade ? `Alterar validade · ${acaoValidade.nome}` : "Alterar validade"}
+        onClose={() => setAcaoValidade(null)}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => setAcaoValidade(null)}>
+              Cancelar
+            </Button>
+            <Button type="submit" form="acao-validade-form" disabled={saving}>
+              {saving ? "Salvando..." : "Confirmar"}
+            </Button>
+          </>
+        }
+      >
+        <form id="acao-validade-form" className="space-y-3" onSubmit={onValidadeSubmit}>
+          {acaoValidade ? (
+            <p className="text-sm text-ink-muted">
+              Validade atual:{" "}
+              <strong className="text-ink">{formatarData(acaoValidade.validade)}</strong>
+            </p>
+          ) : null}
+
+          <DateInput
+            label="Nova validade"
+            required
+            value={novaValidade}
+            onChange={setNovaValidade}
           />
         </form>
       </Modal>

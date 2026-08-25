@@ -10,15 +10,11 @@ import { Skeleton } from "../../../shared/ui/PageHeader";
 import {
   IconAlert,
   IconArrowRight,
-  IconBoxes,
-  IconCalendar,
   IconCart,
   IconClipboard,
   IconClipboardCheck,
   IconFileMedical,
-  IconHeadset,
   IconPills,
-  IconRegister,
   IconShield,
   IconTrend,
   IconUsers,
@@ -33,24 +29,17 @@ import { VendaService } from "../../venda/venda.service";
 
 const atalhosPorPerfil: Record<Perfil, { to: string; label: string; icone: IconeNav }[]> = {
   GERENTE: [
-    { to: "/produtos", label: "Todos os Produtos", icone: IconPills },
-    { to: "/produtos/entrada", label: "Entrada de Produtos", icone: IconBoxes },
+    { to: "/produtos", label: "Produtos", icone: IconPills },
     { to: "/usuarios", label: "Usuários", icone: IconUsers },
-    { to: "/vendas", label: "Vendas", icone: IconCart },
   ],
   ATENDENTE: [
-    { to: "/atendimento", label: "Atendimento", icone: IconHeadset },
-    { to: "/produtos", label: "Consultar Produtos", icone: IconPills },
     { to: "/vendas", label: "Vendas", icone: IconCart },
+    { to: "/prescricoes", label: "Prescrições", icone: IconFileMedical },
   ],
-  CAIXA: [
-    { to: "/caixa", label: "Caixa", icone: IconRegister },
-    { to: "/produtos", label: "Consultar Produtos", icone: IconPills },
-    { to: "/vendas", label: "Vendas", icone: IconCart },
-  ],
+  CAIXA: [{ to: "/vendas", label: "Vendas", icone: IconCart }],
   FARMACEUTICO: [
+    { to: "/produtos", label: "Produtos", icone: IconPills },
     { to: "/avaliacoes", label: "Avaliações", icone: IconClipboardCheck },
-    { to: "/produtos/validades", label: "Controle de Validades", icone: IconCalendar },
     { to: "/prescricoes", label: "Prescrições", icone: IconFileMedical },
   ],
 };
@@ -130,17 +119,17 @@ export function DashboardPage() {
 
   if (carregando) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, indice) => (
             <Skeleton key={indice} className="h-[84px] rounded-[25px]" />
           ))}
         </div>
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
           <Skeleton className="h-[168px] rounded-[25px]" />
           <Skeleton className="h-[168px] rounded-[25px]" />
         </div>
-        <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
           <Skeleton className="h-[300px] rounded-[25px]" />
           <Skeleton className="h-[300px] rounded-[25px]" />
         </div>
@@ -149,7 +138,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {usuario ? (
         <div className="animate-surgir">
           <p className="text-sm text-ink-muted">
@@ -216,8 +205,8 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-        <div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
           <SectionTitle>Painel de estoque</SectionTitle>
           <div className="grid gap-4 sm:grid-cols-2">
             <article className="relative overflow-hidden rounded-[25px] bg-brand-red p-6 text-white shadow-brand">
@@ -309,7 +298,7 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader
             titulo="Estoque por produto"
@@ -335,7 +324,7 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-2">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader titulo="Acesso rápido" descricao="Os atalhos do seu perfil." />
           <div className="grid gap-2 sm:grid-cols-2">

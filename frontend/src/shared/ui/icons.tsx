@@ -189,6 +189,23 @@ export function IconCheck(props: IconProps) {
   );
 }
 
+export function IconSquare(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5" y="5" width="14" height="14" rx="2.5" />
+    </Svg>
+  );
+}
+
+export function IconSquareCheck(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor" stroke="none" />
+      <path d="m8.5 12 2.2 2.2 5-5" stroke="white" strokeWidth="2" />
+    </Svg>
+  );
+}
+
 export function IconInfo(props: IconProps) {
   return (
     <Svg {...props}>

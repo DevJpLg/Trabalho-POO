@@ -131,11 +131,13 @@ export class HttpClient implements InterfaceHttpClient {
       clearTimeout(timer);
     }
 
+    const data = await lerCorpo(response);
+
+    // 204 não deveria ter corpo, mas o DELETE de produto manda JSON mesmo assim.
+    // Precisa drenar o stream (acima) senão o próximo fetch na mesma conexão falha.
     if (response.status === 204) {
       return undefined as T;
     }
-
-    const data = await lerCorpo(response);
 
     if (!response.ok) {
       if (response.status === 401) {

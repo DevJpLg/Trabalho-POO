@@ -4,9 +4,19 @@ export type PosicaoPopover = {
   top: number;
   left: number;
   width: number;
+  maxHeight: number;
   /** `true` quando não coube abaixo e o painel foi virado para cima. */
   paraCima: boolean;
 };
+
+export type OpcoesPosicaoPopover = {
+  /** Largura fixa do painel. Sem isso, ele acompanha a âncora. */
+  larguraMaxima?: number;
+  /** `fim` alinha o painel à direita da âncora (ex.: calendário no ícone). */
+  alinhar?: "inicio" | "fim";
+};
+
+const MARGEM = 8;
 
 /**
  * Calcula onde desenhar um painel flutuante ancorado a um elemento.
@@ -18,6 +28,7 @@ export function usePosicaoPopover(
   aberto: boolean,
   ancora: RefObject<HTMLElement | null>,
   alturaEstimada = 280,
+  opcoes: OpcoesPosicaoPopover = {},
 ): PosicaoPopover | null {
   const [posicao, setPosicao] = useState<PosicaoPopover | null>(null);
 
@@ -32,13 +43,24 @@ export function usePosicaoPopover(
       if (!elemento) return;
 
       const caixa = elemento.getBoundingClientRect();
-      const espacoAbaixo = window.innerHeight - caixa.bottom;
-      const paraCima = espacoAbaixo < alturaEstimada && caixa.top > espacoAbaixo;
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+
+      const larguraAlvo = opcoes.larguraMaxima ?? caixa.width;
+      const width = Math.min(Math.max(larguraAlvo, 0), viewportW - MARGEM * 2);
+
+      let left = opcoes.alinhar === "fim" ? caixa.right - width : caixa.left;
+      left = Math.min(Math.max(MARGEM, left), viewportW - width - MARGEM);
+
+      const espacoAbaixo = viewportH - caixa.bottom - MARGEM;
+      const espacoAcima = caixa.top - MARGEM;
+      const paraCima = espacoAbaixo < alturaEstimada && espacoAcima > espacoAbaixo;
 
       setPosicao({
-        top: paraCima ? caixa.top - 8 : caixa.bottom + 8,
-        left: caixa.left,
-        width: caixa.width,
+        top: paraCima ? caixa.top - MARGEM : caixa.bottom + MARGEM,
+        left,
+        width,
+        maxHeight: Math.max(160, paraCima ? espacoAcima : espacoAbaixo),
         paraCima,
       });
     }
@@ -50,7 +72,7 @@ export function usePosicaoPopover(
       window.removeEventListener("scroll", recalcular, true);
       window.removeEventListener("resize", recalcular);
     };
-  }, [aberto, ancora, alturaEstimada]);
+  }, [aberto, ancora, alturaEstimada, opcoes.larguraMaxima, opcoes.alinhar]);
 
   return posicao;
 }

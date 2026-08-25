@@ -13,7 +13,8 @@ import {
 import { Badge } from "../../../shared/ui/Badge";
 import { Button } from "../../../shared/ui/Button";
 import { dataHora } from "../../../shared/ui/format";
-import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { toastErro } from "../../../shared/ui/feedback";
+import { EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
 import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
@@ -48,15 +49,13 @@ export function VendasPage() {
   const [rows, setRows] = useState<VendaDTO[]>([]);
   const [equipe, setEquipe] = useState<UsuarioDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       setRows(await vendas.listar(statusFiltro));
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
       setRows([]);
     } finally {
       setLoading(false);
@@ -124,12 +123,6 @@ export function VendasPage() {
           </Button>
         ))}
       </div>
-
-      {error ? (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      ) : null}
 
       {loading ? (
         <LoadingState />

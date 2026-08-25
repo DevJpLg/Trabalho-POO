@@ -15,6 +15,7 @@ import { dataHora, moeda } from "../../../shared/ui/format";
 import { Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { Modal } from "../../../shared/ui/Modal";
+import { pedirConfirmacao, toastErro, toastSucesso } from "../../../shared/ui/feedback";
 import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
 import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
@@ -67,8 +68,6 @@ export function ItensVendaPage() {
 
   const [carregandoVendas, setCarregandoVendas] = useState(true);
   const [carregandoItens, setCarregandoItens] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [buscaProduto, setBuscaProduto] = useState("");
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDTO | null>(null);
@@ -84,7 +83,6 @@ export function ItensVendaPage() {
 
   const carregarVendas = useCallback(async () => {
     setCarregandoVendas(true);
-    setError(null);
     try {
       const lista = await vendas.listar(statusFiltro === "TODAS" ? undefined : statusFiltro);
       setListaVendas(lista);
@@ -93,7 +91,7 @@ export function ItensVendaPage() {
         return lista[0]?.id ?? null;
       });
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
       setListaVendas([]);
       setVendaId(null);
     } finally {
@@ -133,13 +131,12 @@ export function ItensVendaPage() {
   const carregarItens = useCallback(
     async (id: number) => {
       setCarregandoItens(true);
-      setError(null);
       try {
         const resumo = await itens.carregarResumo(id);
         setLinhas(resumo.itens);
         setTotal(resumo.total);
       } catch (err) {
-        setError(getErrorMessage(err));
+        toastErro(getErrorMessage(err));
         setLinhas([]);
         setTotal(0);
       } finally {
@@ -166,21 +163,19 @@ export function ItensVendaPage() {
 
     const qtd = Number(quantidade);
     if (!Number.isInteger(qtd) || qtd <= 0) {
-      setError("A quantidade precisa ser um inteiro maior que zero.");
+      toastErro("A quantidade precisa ser um inteiro maior que zero.");
       return;
     }
 
     setSalvando(true);
-    setError(null);
-    setSuccess(null);
     try {
       const resultado = await itens.adicionar(vendaId, produtoSelecionado.id, qtd);
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       setProdutoSelecionado(null);
       setQuantidade("1");
       await carregarItens(vendaId);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     } finally {
       setSalvando(false);
     }
@@ -192,20 +187,18 @@ export function ItensVendaPage() {
 
     const qtd = Number(novaQuantidade);
     if (!Number.isInteger(qtd) || qtd <= 0) {
-      setError("A quantidade precisa ser um inteiro maior que zero.");
+      toastErro("A quantidade precisa ser um inteiro maior que zero.");
       return;
     }
 
     setSalvando(true);
-    setError(null);
-    setSuccess(null);
     try {
       const resultado = await itens.atualizarQuantidade(vendaId, itemEditando.id, qtd);
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       setItemEditando(null);
       await carregarItens(vendaId);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     } finally {
       setSalvando(false);
     }
@@ -213,16 +206,19 @@ export function ItensVendaPage() {
 
   async function onRemover(item: ItemVendaDTO) {
     if (vendaId === null) return;
-    if (!confirm(`Remover o item #${item.id} desta venda?`)) return;
+    const confirmou = await pedirConfirmacao({
+      titulo: "Remover item?",
+      texto: `O item #${item.id} será retirado desta venda. Esta ação não pode ser desfeita.`,
+      confirmar: "Remover",
+    });
+    if (!confirmou) return;
 
-    setError(null);
-    setSuccess(null);
     try {
       await itens.remover(vendaId, item.id);
-      setSuccess("Item removido da venda.");
+      toastSucesso("Item removido da venda.");
       await carregarItens(vendaId);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     }
   }
 
@@ -288,17 +284,6 @@ export function ItensVendaPage() {
           />
         )}
       </Card>
-
-      {error ? (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      ) : null}
-      {success ? (
-        <div className="mb-4">
-          <Alert tone="success">{success}</Alert>
-        </div>
-      ) : null}
 
       {vendaSelecionada ? (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[25px] bg-surface px-5 py-4 shadow-card ring-1 ring-line/60">
@@ -444,7 +429,6 @@ export function ItensVendaPage() {
                     key: "acoes",
                     header: "Ações",
                     fim: true,
-                    className: "min-w-24",
                     render: (item: ItemVendaDTO) => (
                       <RowActions>
                         <IconButton

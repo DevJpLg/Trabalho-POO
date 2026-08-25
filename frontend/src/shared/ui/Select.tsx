@@ -147,7 +147,7 @@ export function Select({
                 bottom: posicao.paraCima ? window.innerHeight - posicao.top : undefined,
                 left: posicao.left,
                 width: posicao.width,
-                maxHeight: 264,
+                maxHeight: Math.min(264, posicao.maxHeight),
                 overflowY: "auto",
               }}
             >

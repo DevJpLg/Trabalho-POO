@@ -6,7 +6,6 @@ import {
   PERFIS_AVALIAM_ITENS,
   PERFIS_CONTROLAM_VALIDADE,
   PERFIS_GERENCIAM_PRESCRICOES,
-  PERFIS_GERENCIAM_PRODUTOS,
 } from "./shared/auth/permissoes";
 import { AppLayout } from "./shared/ui/AppLayout";
 import { LoginPage } from "./modules/autenticacao/pages/LoginPage";
@@ -34,10 +33,7 @@ export default function App() {
               <Route path="produtos" element={<ProdutosPage />} />
               {/* A aba aparece para todo mundo; só o gerente vê as ações de cadastro. */}
               <Route path="usuarios" element={<UsuariosPage />} />
-
-              <Route element={<RoleRoute allow={PERFIS_GERENCIAM_PRODUTOS} />}>
-                <Route path="produtos/entrada" element={<ProdutosPage />} />
-              </Route>
+              <Route path="produtos/entrada" element={<Navigate to="/produtos" replace />} />
 
               <Route element={<RoleRoute allow={PERFIS_CONTROLAM_VALIDADE} />}>
                 <Route path="produtos/validades" element={<ProdutosPage />} />
