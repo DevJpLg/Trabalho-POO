@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../shared/auth/AuthContext";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
 import {
@@ -31,6 +31,9 @@ import { VendaService } from "../venda.service";
 export function AvaliacoesPage() {
   usePageTitle("Avaliações");
   const { http } = useAuth();
+  const [searchParams] = useSearchParams();
+  const vendaDestacadaId = Number(searchParams.get("venda"));
+  const vendaDestacada = Number.isInteger(vendaDestacadaId) && vendaDestacadaId > 0 ? vendaDestacadaId : null;
 
   const vendas = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
   const prescricoes = useMemo(
@@ -109,7 +112,11 @@ export function AvaliacoesPage() {
           {fila.map((venda) => {
             const daVenda = receitasDaVenda(venda.id);
             return (
-              <Card key={venda.id ?? Math.random()} interativo>
+              <Card
+                key={venda.id ?? Math.random()}
+                interativo
+                className={venda.id === vendaDestacada ? "ring-2 ring-brand-green" : undefined}
+              >
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <SectionTitle className="mb-0">Venda #{venda.id}</SectionTitle>
                   <Badge tone="amber">{statusVendaLabel[venda.status]}</Badge>

@@ -14,10 +14,9 @@ export class NotificacaoController implements InterfaceNotificacaoController {
     private serializarNotificacao(notificacao: Notificacao) {
         return {
             id: notificacao.getId(),
-            tipo: notificacao.getTipo(),
             vendaId: notificacao.getVendaId(),
             dataHora: notificacao.getDataHora(),
-            resolvida: notificacao.getResolvida(),
+            farmaceuticoId: notificacao.getFarmaceuticoId(),
         };
     }
 

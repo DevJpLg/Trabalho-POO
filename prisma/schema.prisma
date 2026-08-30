@@ -37,10 +37,6 @@ enum Classificacao {
   PRESCRITO
 }
 
-enum TipoNotificacao {
-  VENDA_PRESCRITA
-}
-
 // =============================================================================
 // Models
 // =============================================================================
@@ -59,6 +55,7 @@ model Usuario {
   vendasComoCaixa          Venda[]       @relation("VendaCaixa")
   // Farmacêutico avalia vendas com medicamentos controlados/prescritos (não participa da venda em si)
   avaliacoesComoFarmaceutico Venda[]     @relation("AvaliacaoFarmaceutico")
+  notificacoesAtendidas      Notificacao[] @relation("NotificacaoFarmaceutico")
 
   @@map("usuarios")
 }
@@ -155,13 +152,15 @@ model Prescricao {
 }
 
 model Notificacao {
-  id        Int              @id @default(autoincrement())
-  tipo      TipoNotificacao
-  dataHora  DateTime         @default(now())
-  resolvida Boolean          @default(false)
+  id       Int      @id @default(autoincrement())
+  dataHora DateTime @default(now())
 
   vendaId Int
   venda   Venda @relation(fields: [vendaId], references: [id])
+
+  // null = ainda não atendida; preenchido = farmacêutico responsável pelo atendimento
+  farmaceuticoId Int?
+  farmaceutico   Usuario? @relation("NotificacaoFarmaceutico", fields: [farmaceuticoId], references: [id])
 
   @@map("notificacoes")
 }

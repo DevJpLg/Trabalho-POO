@@ -1,35 +1,31 @@
 import crypto from "crypto";
 
-export enum TipoNotificacao {
-    VENDA_PRESCRITA = "VENDA_PRESCRITA",
-}
-
 export default class Notificacao {
     private id: number;
-    private tipo: TipoNotificacao;
     private vendaId: number;
     private dataHora: Date;
-    private resolvida: boolean;
+    private farmaceuticoId: number | null;
 
-    constructor(id: number, tipo: TipoNotificacao, vendaId: number, dataHora: Date, resolvida: boolean) {
+    constructor(id: number, vendaId: number, dataHora: Date, farmaceuticoId: number | null) {
         this.id = id;
-        this.tipo = tipo;
         this.vendaId = vendaId;
         this.dataHora = dataHora;
-        this.resolvida = resolvida;
+        this.farmaceuticoId = farmaceuticoId;
     }
 
     public getId(): number { return this.id; }
-    public getTipo(): TipoNotificacao { return this.tipo; }
     public getVendaId(): number { return this.vendaId; }
     public getDataHora(): Date { return this.dataHora; }
-    public getResolvida(): boolean { return this.resolvida; }
+    public getFarmaceuticoId(): number | null { return this.farmaceuticoId; }
 
-    public resolver(): void {
-        if (this.resolvida) {
+    public atender(farmaceuticoId: number): void {
+        if (this.farmaceuticoId !== null) {
             throw new Error("Notificação já foi atendida");
         }
-        this.resolvida = true;
+        if (!Number.isInteger(farmaceuticoId) || farmaceuticoId <= 0) {
+            throw new Error("Farmacêutico inválido");
+        }
+        this.farmaceuticoId = farmaceuticoId;
     }
 
     public static criarNotificacao(vendaId: number): Notificacao {
@@ -38,10 +34,10 @@ export default class Notificacao {
         }
 
         const id = crypto.randomInt(1, 1000000);
-        return new Notificacao(id, TipoNotificacao.VENDA_PRESCRITA, vendaId, new Date(), false);
+        return new Notificacao(id, vendaId, new Date(), null);
     }
 
-    public static rebuildNotificacao(id: number, tipo: TipoNotificacao, vendaId: number, dataHora: Date, resolvida: boolean): Notificacao {
-        return new Notificacao(id, tipo, vendaId, dataHora, resolvida);
+    public static rebuildNotificacao(id: number, vendaId: number, dataHora: Date, farmaceuticoId: number | null): Notificacao {
+        return new Notificacao(id, vendaId, dataHora, farmaceuticoId);
     }
 }

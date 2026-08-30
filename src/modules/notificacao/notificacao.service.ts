@@ -17,7 +17,7 @@ export class NotificacaoService implements InterfaceNotificacaoService {
         private readonly autorizacaoService: InterfaceAutorizacaoService,
     ) {}
 
-    /* ! ========== Criar notificação compartilhada da venda prescrita ========== */
+    /* ! ========== Criar notificação compartilhada da venda que exige avaliação ========== */
     public async criarNotificacao(vendaId: number): Promise<Notificacao | Error> {
         try {
             const notificacaoAberta = await this.repository.buscarNotificacaoAbertaPorVendaId(vendaId);
@@ -41,7 +41,7 @@ export class NotificacaoService implements InterfaceNotificacaoService {
         }
     }
 
-    /* ! ========== Listar notificações abertas ========== */
+    /* ! ========== Listar notificações não atendidas ========== */
     public async listarNotificacoes(usuarioLogado: Usuario): Promise<Notificacao[] | Error> {
         try {
             if (!(await this.autorizacaoService.usuarioPodeAvaliarItemVendas(usuarioLogado))) {
@@ -55,7 +55,7 @@ export class NotificacaoService implements InterfaceNotificacaoService {
         }
     }
 
-    /* ! ========== Atender notificação (resolve para todos os farmacêuticos) ========== */
+    /* ! ========== Atender notificação (fica com o farmacêutico que acessou) ========== */
     public async atenderNotificacao(usuarioLogado: Usuario, id: number): Promise<void | Error> {
         try {
             if (!(await this.autorizacaoService.usuarioPodeAvaliarItemVendas(usuarioLogado))) {
@@ -67,10 +67,10 @@ export class NotificacaoService implements InterfaceNotificacaoService {
                 return new Error("Notificação não encontrada");
             }
 
-            notificacao.resolver();
+            notificacao.atender(usuarioLogado.getId());
 
-            const resolvida = await this.repository.resolverNotificacao(notificacao);
-            if (!resolvida) {
+            const atendida = await this.repository.atenderNotificacao(notificacao);
+            if (!atendida) {
                 return new Error("Erro ao atender notificação");
             }
         } catch (error) {

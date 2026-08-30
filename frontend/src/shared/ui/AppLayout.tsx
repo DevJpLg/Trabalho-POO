@@ -4,9 +4,11 @@ import { useAuth } from "../auth/AuthContext";
 import { perfilLabel, type Perfil } from "../types/api";
 import { BrandLogo } from "./BrandLogo";
 import { IconButton } from "./Button";
+import { podeAvaliarItens } from "../auth/permissoes";
 import { filhosVisiveis, navItems, pageTitles, perfilPode, type NavItem } from "./nav";
 import { PageTitleContext } from "./usePageTitle";
 import { IconChevronDown, IconClose, IconLogout, IconMenu, IconSearch, IconUser } from "./icons";
+import { NotificacaoBell } from "../../modules/notificacao/NotificacaoBell";
 
 const iniciais = (nome: string) =>
   nome
@@ -318,6 +320,7 @@ export function AppLayout() {
                 </form>
               ) : null}
 
+              {podeAvaliarItens(usuario?.perfil) ? <NotificacaoBell /> : null}
               <UserMenu />
             </div>
           </header>

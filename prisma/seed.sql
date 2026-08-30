@@ -159,18 +159,18 @@ CREATE TABLE prescricoes (
 
 -- -----------------------------------------------------------------------------
 -- notificacoes (model Notificacao)
--- Notificação compartilhada: uma ocorrência por venda prescrita.
--- Quando resolvida = TRUE, deixa de aparecer para todos os farmacêuticos.
+-- Notificação compartilhada: uma ocorrência por venda que exige avaliação.
+-- farmaceuticoId NULL = ainda não atendida; preenchido = já foi atendida por X.
 -- -----------------------------------------------------------------------------
 CREATE TABLE notificacoes (
-  id        INT      NOT NULL AUTO_INCREMENT,
-  tipo      ENUM('VENDA_PRESCRITA') NOT NULL,
-  dataHora  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  resolvida BOOLEAN  NOT NULL DEFAULT FALSE,
-  vendaId   INT      NOT NULL,
+  id             INT      NOT NULL AUTO_INCREMENT,
+  dataHora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  vendaId        INT      NOT NULL,
+  farmaceuticoId INT      NULL,
 
   PRIMARY KEY (id),
-  CONSTRAINT fk_notificacoes_venda FOREIGN KEY (vendaId) REFERENCES vendas(id)
+  CONSTRAINT fk_notificacoes_venda        FOREIGN KEY (vendaId)        REFERENCES vendas(id),
+  CONSTRAINT fk_notificacoes_farmaceutico FOREIGN KEY (farmaceuticoId) REFERENCES usuarios(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -350,18 +350,18 @@ INSERT INTO prescricoes (id, numeroPrescricao, nomeMedico, numeroCrm, ufCrm, nom
 
 -- -----------------------------------------------------------------------------
 -- 3.6 Notificações
--- Uma notificação compartilhada por venda prescrita (não há cópia por farmacêutico).
+-- Uma notificação compartilhada por venda que exige avaliação.
 -- -----------------------------------------------------------------------------
-INSERT INTO notificacoes (id, tipo, dataHora, resolvida, vendaId) VALUES
+INSERT INTO notificacoes (id, dataHora, vendaId, farmaceuticoId) VALUES
 
 -- Venda 2 (EM_AVALIACAO): ainda pendente — visível para todos os farmacêuticos
-(1, 'VENDA_PRESCRITA', '2026-07-21 10:16:00', FALSE, 2),
+(1, '2026-07-21 10:16:00', 2, NULL),
 
--- Venda 3 (AGUARDANDO_PAGAMENTO): já atendida — não aparece na listagem
-(2, 'VENDA_PRESCRITA', '2026-07-21 11:31:00', TRUE, 3),
+-- Venda 3 (AGUARDANDO_PAGAMENTO): já atendida pelo Dr. Pedro
+(2, '2026-07-21 11:31:00', 3, 3),
 
--- Venda 4 (FINALIZADA): já atendida — não aparece na listagem
-(3, 'VENDA_PRESCRITA', '2026-07-20 14:01:00', TRUE, 4);
+-- Venda 4 (FINALIZADA): já atendida pelo Dr. Pedro
+(3, '2026-07-20 14:01:00', 4, 3);
 
 -- =============================================================================
 -- Fim do script

@@ -1,4 +1,4 @@
-import Notificacao, { TipoNotificacao } from "./index";
+import Notificacao from "./index";
 import { prisma } from "../../shared/database";
 import type { PrismaClient } from "../../generated/prisma/client";
 
@@ -7,7 +7,11 @@ export default interface InterfaceNotificacaoRepository {
     listarNotificacoes(): Promise<Notificacao[] | null>;
     buscarNotificacaoPorId(id: number): Promise<Notificacao | null>;
     buscarNotificacaoAbertaPorVendaId(vendaId: number): Promise<Notificacao | null>;
-    resolverNotificacao(notificacao: Notificacao): Promise<boolean>;
+    atenderNotificacao(notificacao: Notificacao): Promise<boolean>;
+}
+
+function reconstruirNotificacao(row: { id: number; vendaId: number; dataHora: Date; farmaceuticoId: number | null }): Notificacao {
+    return Notificacao.rebuildNotificacao(row.id, row.vendaId, row.dataHora, row.farmaceuticoId);
 }
 
 export class NotificacaoRepository implements InterfaceNotificacaoRepository {
@@ -22,19 +26,18 @@ export class NotificacaoRepository implements InterfaceNotificacaoRepository {
         const resultado = await this.prisma.notificacao.create({
             data: {
                 id: notificacao.getId(),
-                tipo: notificacao.getTipo(),
                 dataHora: notificacao.getDataHora(),
-                resolvida: notificacao.getResolvida(),
                 vendaId: notificacao.getVendaId(),
+                farmaceuticoId: notificacao.getFarmaceuticoId(),
             },
         });
         return resultado ? true : false;
     }
 
-    /* ! ========== Listar Notificações abertas ========== */
+    /* ! ========== Listar Notificações não atendidas ========== */
     public async listarNotificacoes(): Promise<Notificacao[] | null> {
         const resultado = await this.prisma.notificacao.findMany({
-            where: { resolvida: false },
+            where: { farmaceuticoId: null },
             orderBy: { dataHora: "desc" },
         });
 
@@ -42,15 +45,7 @@ export class NotificacaoRepository implements InterfaceNotificacaoRepository {
             return null;
         }
 
-        return resultado.map((row) =>
-            Notificacao.rebuildNotificacao(
-                row.id,
-                row.tipo as TipoNotificacao,
-                row.vendaId,
-                row.dataHora,
-                row.resolvida,
-            ),
-        );
+        return resultado.map(reconstruirNotificacao);
     }
 
     /* ! ========== Buscar Notificação por ID ========== */
@@ -63,13 +58,7 @@ export class NotificacaoRepository implements InterfaceNotificacaoRepository {
             return null;
         }
 
-        return Notificacao.rebuildNotificacao(
-            resultado.id,
-            resultado.tipo as TipoNotificacao,
-            resultado.vendaId,
-            resultado.dataHora,
-            resultado.resolvida,
-        );
+        return reconstruirNotificacao(resultado);
     }
 
     /* ! ========== Buscar notificação aberta da venda ========== */
@@ -77,7 +66,7 @@ export class NotificacaoRepository implements InterfaceNotificacaoRepository {
         const resultado = await this.prisma.notificacao.findFirst({
             where: {
                 vendaId: vendaId,
-                resolvida: false,
+                farmaceuticoId: null,
             },
         });
 
@@ -85,20 +74,14 @@ export class NotificacaoRepository implements InterfaceNotificacaoRepository {
             return null;
         }
 
-        return Notificacao.rebuildNotificacao(
-            resultado.id,
-            resultado.tipo as TipoNotificacao,
-            resultado.vendaId,
-            resultado.dataHora,
-            resultado.resolvida,
-        );
+        return reconstruirNotificacao(resultado);
     }
 
-    /* ! ========== Resolver Notificação ========== */
-    public async resolverNotificacao(notificacao: Notificacao): Promise<boolean> {
+    /* ! ========== Atender Notificação ========== */
+    public async atenderNotificacao(notificacao: Notificacao): Promise<boolean> {
         const resultado = await this.prisma.notificacao.update({
             where: { id: notificacao.getId() },
-            data: { resolvida: notificacao.getResolvida() },
+            data: { farmaceuticoId: notificacao.getFarmaceuticoId() },
         });
         return resultado ? true : false;
     }
