@@ -2,6 +2,7 @@ import InterfaceProdutoRepository from "./produto.repository";
 import InterfaceAutorizacaoService from "../usuario/autorizacao/autorizacao.service";
 import Produto, { Classificacao, DadosProduto } from "./index";
 import Usuario from "../usuario";
+import ItemVenda from "../itemVenda";
 
 export default interface InterfaceProdutoService {
     cadastrarProduto(usuarioLogado: Usuario, dados: DadosProduto): Promise<boolean | Error>;
@@ -10,7 +11,7 @@ export default interface InterfaceProdutoService {
     editarProduto(usuarioLogado: Usuario, id: number, dados: DadosProduto): Promise<void | Error>;
     deletarProduto(usuarioLogado: Usuario, id: number): Promise<void | Error>;
     realizarEntrada(usuarioLogado: Usuario, id: number, qtd: number): Promise<void | Error>;
-    realizarBaixa(usuarioLogado: Usuario, id: number, qtd: number): Promise<void | Error>;
+    realizarBaixa(usuarioLogado: Usuario, itens: ItemVenda[]): Promise<void | Error>;
     alterarValidade(usuarioLogado: Usuario, id: number, novaData: Date): Promise<void | Error>;
     monitorarValidades(usuarioLogado: Usuario, dias?: number): Promise<Produto[] | Error>;
     bloquearProduto(usuarioLogado: Usuario, id: number): Promise<void | Error>;
@@ -213,33 +214,38 @@ export class ProdutoService implements InterfaceProdutoService {
 
 
     /* ! ========== Realizar Baixa de Estoque ========== */
-    public async realizarBaixa(usuarioLogado: Usuario, id: number, qtd: number): Promise<void | Error> {
+    public async realizarBaixa(usuarioLogado: Usuario, itens: ItemVenda[]): Promise<void | Error> {
         try {
             if(!(await this.autorizacaoService.usuarioPodeGerenciarVendas(usuarioLogado))) {
                 return new Error("Usuário não autorizado");
             }
 
-            if(!Number.isInteger(qtd) || qtd <= 0) {
-                return new Error("Quantidade de baixa deve ser maior que zero");
-            }
+            for (const item of itens) {
+                const id = item.getProdutoId();
+                const qtd = item.getQuantidade();
 
-            const produtoExistente = await this.repository.buscarProdutoPorId(id);
-            if(!produtoExistente || produtoExistente === null) {
-                return new Error("Produto não encontrado");
-            }
+                if(!Number.isInteger(qtd) || qtd <= 0) {
+                    return new Error("Quantidade de baixa deve ser maior que zero");
+                }
 
-            if(!produtoExistente.getIsActive()) {
-                return new Error("Produto bloqueado não pode sofrer baixa de estoque");
-            }
+                const produtoExistente = await this.repository.buscarProdutoPorId(id);
+                if(!produtoExistente || produtoExistente === null) {
+                    return new Error("Produto não encontrado");
+                }
 
-            const quantidadeEstoque = produtoExistente.getQuantidadeEstoque();
-            if(quantidadeEstoque === null || quantidadeEstoque < qtd) {
-                return new Error("Quantidade em estoque insuficiente para a baixa");
-            }
+                if(!produtoExistente.getIsActive()) {
+                    return new Error("Produto bloqueado não pode sofrer baixa de estoque");
+                }
 
-            const resultado = await this.repository.realizarBaixa(id, qtd);
-            if(!resultado) {
-                return new Error("Erro ao realizar baixa no estoque");
+                const quantidadeEstoque = produtoExistente.getQuantidadeEstoque();
+                if(quantidadeEstoque === null || quantidadeEstoque < qtd) {
+                    return new Error("Quantidade em estoque insuficiente para a baixa");
+                }
+
+                const resultado = await this.repository.realizarBaixa(id, qtd);
+                if(!resultado) {
+                    return new Error("Erro ao realizar baixa no estoque");
+                }
             }
         } catch (error) {
             return new Error("Erro ao realizar baixa no estoque");

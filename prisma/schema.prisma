@@ -37,6 +37,10 @@ enum Classificacao {
   PRESCRITO
 }
 
+enum TipoNotificacao {
+  VENDA_PRESCRITA
+}
+
 // =============================================================================
 // Models
 // =============================================================================
@@ -55,7 +59,6 @@ model Usuario {
   vendasComoCaixa          Venda[]       @relation("VendaCaixa")
   // Farmacêutico avalia vendas com medicamentos controlados/prescritos (não participa da venda em si)
   avaliacoesComoFarmaceutico Venda[]     @relation("AvaliacaoFarmaceutico")
-  notificacoes               Notificacao[]
 
   @@map("usuarios")
 }
@@ -97,8 +100,8 @@ model Venda {
   dataHora DateTime    @default(now())
   status   StatusVenda @default(EM_ANDAMENTO)
 
-  atendenteId Int
-  atendente   Usuario @relation("VendaAtendente", fields: [atendenteId], references: [id])
+  atendenteId Int?
+  atendente   Usuario? @relation("VendaAtendente", fields: [atendenteId], references: [id])
 
   caixaId Int?
   caixa   Usuario? @relation("VendaCaixa", fields: [caixaId], references: [id])
@@ -152,15 +155,13 @@ model Prescricao {
 }
 
 model Notificacao {
-  id       Int      @id @default(autoincrement())
-  mensagem String   @db.Text
-  dataHora DateTime @default(now())
+  id        Int              @id @default(autoincrement())
+  tipo      TipoNotificacao
+  dataHora  DateTime         @default(now())
+  resolvida Boolean          @default(false)
 
-  farmaceuticoId Int
-  farmaceutico   Usuario @relation(fields: [farmaceuticoId], references: [id])
-
-  vendaId Int?
-  venda   Venda? @relation(fields: [vendaId], references: [id])
+  vendaId Int
+  venda   Venda @relation(fields: [vendaId], references: [id])
 
   @@map("notificacoes")
 }

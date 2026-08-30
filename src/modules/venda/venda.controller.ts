@@ -1,10 +1,24 @@
 import { Request, Response } from "express";
-import { VendaService } from "./venda.service";
-import Venda, { StatusVenda } from "./index";
+import InterfaceVendaService from "./venda.service";
+import Venda from "./index";
+import Usuario from "../usuario";
 
-export class VendaController {
-  constructor(private readonly service: VendaService) {}
+export default interface InterfaceVendaController {
+  registrarVenda(req: Request, res: Response): Promise<void>;
+  listarVendas(req: Request, res: Response): Promise<void>;
+  buscarPorId(req: Request, res: Response): Promise<void>;
+  finalizarVenda(req: Request, res: Response): Promise<void>;
+  cancelarVenda(req: Request, res: Response): Promise<void>;
+}
 
+export class VendaController implements InterfaceVendaController {
+  private readonly service: InterfaceVendaService;
+
+  constructor(service: InterfaceVendaService) {
+    this.service = service;
+  }
+
+  // Recebe uma venda e retorna um JSON, para enviar no response
   private serializarVenda(venda: Venda) {
     return {
       id: venda.getId(),
@@ -16,44 +30,81 @@ export class VendaController {
     };
   }
 
-  async iniciarVenda(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
+  // Recebe um JSON e retorna os dados tipados, para serem usados no service
+  private extrairDadosVenda(body: Request["body"]) {
+    let idAtendente: number | null = null;
+    if (body.idAtendente !== undefined && body.idAtendente !== null && body.idAtendente !== "") {
+      idAtendente = Number(body.idAtendente);
+    }
+
+    let idFarmaceutico: number | null = null;
+    if (body.idFarmaceutico !== undefined && body.idFarmaceutico !== null && body.idFarmaceutico !== "") {
+      idFarmaceutico = Number(body.idFarmaceutico);
+    }
+
+    let idCaixa: number | null = null;
+    if (body.idCaixa !== undefined && body.idCaixa !== null && body.idCaixa !== "") {
+      idCaixa = Number(body.idCaixa);
+    }
+
+    return { idAtendente, idFarmaceutico, idCaixa };
   }
 
-  async adicionarItem(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
 
-  async removerItem(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+  /* ! ========== Registrar Venda ========== */
+  async registrarVenda(req: Request, res: Response): Promise<void> {
+    const usuarioLogado = req.usuario;
+    const { idAtendente, idFarmaceutico, idCaixa } = this.extrairDadosVenda(req.body);
 
-  async finalizarVenda(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
-
-  async cancelarVenda(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
-
-  async listar(req: Request, res: Response): Promise<void> {
-    const resultado = await this.service.listarVendas(String(req.query.busca ?? ""));
+    const resultado = await this.service.registrarVenda(usuarioLogado as Usuario, idAtendente, idFarmaceutico, idCaixa);
 
     if (resultado instanceof Error) {
       res.status(400).json({ message: resultado.message });
       return;
     }
 
-    const status = typeof req.query.status === "string" ? req.query.status : "";
-    const vendas =
-      status && Object.values(StatusVenda).includes(status as StatusVenda)
-        ? resultado.filter((venda) => venda.getStatus() === status)
-        : resultado;
-
-    res.status(200).json(vendas.map((venda) => this.serializarVenda(venda)));
+    res.status(201).json({ message: "Venda registrada com sucesso." });
   }
 
+
+  /* ! ========== Listar Vendas ========== */
+  async listarVendas(req: Request, res: Response): Promise<void> {
+    const usuarioLogado = req.usuario;
+    const busca = String(req.query.busca ?? "");
+
+    const resultado = await this.service.listarVendas(busca, usuarioLogado as Usuario);
+    if (resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+
+    res.status(200).json(resultado.map((venda) => this.serializarVenda(venda)));
+  }
+
+
+  /* ! ========== Buscar Venda por ID ========== */
   async buscarPorId(_req: Request, res: Response): Promise<void> {
+    res.status(501).json({ message: "Não implementado." });
+  }
+
+
+  /* ! ========== Finalizar Venda ========== */
+  async finalizarVenda(req: Request, res: Response): Promise<void> {
+    const usuarioLogado = req.usuario;
+    const id = Number(req.params.id);
+
+    const resultado = await this.service.finalizarVenda(usuarioLogado as Usuario, id);
+    if (resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+
+    res.status(200).json({ message: "Venda finalizada com sucesso." });
+  }
+
+
+  /* ! ========== Cancelar Venda ========== */
+  async cancelarVenda(_req: Request, res: Response): Promise<void> {
     res.status(501).json({ message: "Não implementado." });
   }
 }

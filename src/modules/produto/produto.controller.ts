@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import InterfaceProdutoService from "./produto.service";
 import Produto, { DadosProduto } from "./index";
 import Usuario from "../usuario";
+import ItemVenda from "../itemVenda";
 
 export interface InterfaceProdutoController {
     cadastrarProduto(req: Request, res: Response): Promise<void>;
@@ -189,7 +190,8 @@ export default class ProdutoController implements InterfaceProdutoController {
         const id = Number(req.params.id);
         const qtd = Number(req.body.qtd);
 
-        const resultado = await this.service.realizarBaixa(usuarioLogado as Usuario, id, qtd);
+        const item = ItemVenda.rebuildItemVenda(0, qtd, 0, false, false, 0, id);
+        const resultado = await this.service.realizarBaixa(usuarioLogado as Usuario, [item]);
         if (resultado instanceof Error) {
             res.status(400).json({ message: resultado.message });
             return;

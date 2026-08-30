@@ -94,14 +94,14 @@ CREATE TABLE produtos (
 
 -- -----------------------------------------------------------------------------
 -- vendas (model Venda)
--- atendenteId obrigatório (quem iniciou); caixaId preenchido ao confirmar pgto.
+-- Precisa de atendenteId ou caixaId (pelo menos um).
 -- -----------------------------------------------------------------------------
 CREATE TABLE vendas (
   id          INT      NOT NULL AUTO_INCREMENT,
   dataHora    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status      ENUM('EM_ANDAMENTO','EM_AVALIACAO','AGUARDANDO_PAGAMENTO','FINALIZADA','CANCELADA')
               NOT NULL DEFAULT 'EM_ANDAMENTO',
-  atendenteId    INT      NOT NULL,
+  atendenteId    INT      NULL,
   caixaId        INT      NULL,
   -- Farmacêutico que avaliou a venda (relação de avaliação, não de operação de venda)
   farmaceuticoId INT      NULL,
@@ -109,7 +109,8 @@ CREATE TABLE vendas (
   PRIMARY KEY (id),
   CONSTRAINT fk_vendas_atendente    FOREIGN KEY (atendenteId)    REFERENCES usuarios(id),
   CONSTRAINT fk_vendas_caixa        FOREIGN KEY (caixaId)        REFERENCES usuarios(id),
-  CONSTRAINT fk_vendas_farmaceutico FOREIGN KEY (farmaceuticoId) REFERENCES usuarios(id)
+  CONSTRAINT fk_vendas_farmaceutico FOREIGN KEY (farmaceuticoId) REFERENCES usuarios(id),
+  CONSTRAINT chk_venda_atendente_ou_caixa CHECK (atendenteId IS NOT NULL OR caixaId IS NOT NULL)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -158,19 +159,18 @@ CREATE TABLE prescricoes (
 
 -- -----------------------------------------------------------------------------
 -- notificacoes (model Notificacao)
--- vendaId opcional — indica a venda que originou a notificação.
+-- Notificação compartilhada: uma ocorrência por venda prescrita.
+-- Quando resolvida = TRUE, deixa de aparecer para todos os farmacêuticos.
 -- -----------------------------------------------------------------------------
 CREATE TABLE notificacoes (
-  id             INT      NOT NULL AUTO_INCREMENT,
-  mensagem       TEXT     NOT NULL,
-  dataHora       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  lida           BOOLEAN  NOT NULL DEFAULT FALSE,
-  farmaceuticoId INT      NOT NULL,
-  vendaId        INT      NULL,
+  id        INT      NOT NULL AUTO_INCREMENT,
+  tipo      ENUM('VENDA_PRESCRITA') NOT NULL,
+  dataHora  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolvida BOOLEAN  NOT NULL DEFAULT FALSE,
+  vendaId   INT      NOT NULL,
 
   PRIMARY KEY (id),
-  CONSTRAINT fk_notificacoes_farmaceutico FOREIGN KEY (farmaceuticoId) REFERENCES usuarios(id),
-  CONSTRAINT fk_notificacoes_venda        FOREIGN KEY (vendaId)        REFERENCES vendas(id)
+  CONSTRAINT fk_notificacoes_venda FOREIGN KEY (vendaId) REFERENCES vendas(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
@@ -350,25 +350,18 @@ INSERT INTO prescricoes (id, numeroPrescricao, nomeMedico, numeroCrm, ufCrm, nom
 
 -- -----------------------------------------------------------------------------
 -- 3.6 Notificações
--- Enviadas ao farmacêutico quando há prescrição pendente de avaliação.
+-- Uma notificação compartilhada por venda prescrita (não há cópia por farmacêutico).
 -- -----------------------------------------------------------------------------
-INSERT INTO notificacoes (id, mensagem, dataHora, lida, farmaceuticoId, vendaId) VALUES
+INSERT INTO notificacoes (id, tipo, dataHora, resolvida, vendaId) VALUES
 
--- Notificação sobre a Venda 2 (ainda pendente)
-(1, 'Nova prescrição pendente de avaliação na Venda #2. Paciente: João da Silva. Medicamentos controlados aguardando sua aprovação.',
-    '2026-07-21 10:16:00', FALSE, 3, 2),
+-- Venda 2 (EM_AVALIACAO): ainda pendente — visível para todos os farmacêuticos
+(1, 'VENDA_PRESCRITA', '2026-07-21 10:16:00', FALSE, 2),
 
--- Notificação sobre a Venda 3 (já lida e resolvida)
-(2, 'Nova prescrição pendente de avaliação na Venda #3. Paciente: Maria Oliveira. Medicamento prescrito aguardando sua aprovação.',
-    '2026-07-21 11:31:00', TRUE, 3, 3),
+-- Venda 3 (AGUARDANDO_PAGAMENTO): já atendida — não aparece na listagem
+(2, 'VENDA_PRESCRITA', '2026-07-21 11:31:00', TRUE, 3),
 
--- Notificação sobre a Venda 4 (lida e finalizada)
-(3, 'Nova prescrição pendente de avaliação na Venda #4. Paciente: Carlos Pereira. Medicamentos controlados aguardando sua aprovação.',
-    '2026-07-20 14:01:00', TRUE, 3, 4),
-
--- Notificação genérica (sem venda vinculada — ex: alerta de estoque)
-(4, 'Atenção: O produto Diazepam 10mg (Lote LOT-2023B) está com validade vencida desde 01/03/2025. Providenciar descarte conforme protocolo.',
-    '2026-07-21 08:00:00', FALSE, 6, NULL);
+-- Venda 4 (FINALIZADA): já atendida — não aparece na listagem
+(3, 'VENDA_PRESCRITA', '2026-07-20 14:01:00', TRUE, 4);
 
 -- =============================================================================
 -- Fim do script

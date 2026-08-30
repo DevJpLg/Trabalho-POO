@@ -1,21 +1,50 @@
 import { Request, Response } from "express";
+import InterfaceNotificacaoService from "./notificacao.service";
+import Notificacao from "./index";
+import Usuario from "../usuario";
 
-/**
- * Controller do módulo Notificação.
- * Responsável pelas notificações internas do sistema.
- */
-export class NotificacaoController {
-  // TODO: injetar NotificacaoService
+export default interface InterfaceNotificacaoController {
+    listar(req: Request, res: Response): Promise<void>;
+    atender(req: Request, res: Response): Promise<void>;
+}
 
-  async listar(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+export class NotificacaoController implements InterfaceNotificacaoController {
+    constructor(private readonly service: InterfaceNotificacaoService) {}
 
-  async marcarComoLida(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+    private serializarNotificacao(notificacao: Notificacao) {
+        return {
+            id: notificacao.getId(),
+            tipo: notificacao.getTipo(),
+            vendaId: notificacao.getVendaId(),
+            dataHora: notificacao.getDataHora(),
+            resolvida: notificacao.getResolvida(),
+        };
+    }
 
-  async contarNaoLidas(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
-  }
+    /* ! ========== Listar Notificações ========== */
+    async listar(req: Request, res: Response): Promise<void> {
+        const usuarioLogado = req.usuario;
+
+        const resultado = await this.service.listarNotificacoes(usuarioLogado as Usuario);
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(200).json(resultado.map((notificacao) => this.serializarNotificacao(notificacao)));
+    }
+
+    /* ! ========== Atender Notificação ========== */
+    async atender(req: Request, res: Response): Promise<void> {
+        const usuarioLogado = req.usuario;
+        const id = Number(req.params.id);
+
+        const resultado = await this.service.atenderNotificacao(usuarioLogado as Usuario, id);
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(200).json({ message: "Notificação atendida com sucesso." });
+    }
 }

@@ -1,12 +1,11 @@
 import { Router } from "express";
-import { NotificacaoController } from "./notificacao.controller";
+import InterfaceNotificacaoController from "./notificacao.controller";
 
-export function criarNotificacaoRoutes(controller: NotificacaoController): Router {
-  const notificacaoRoutes = Router();
+export function criarNotificacaoRoutes(controller: InterfaceNotificacaoController): Router {
+    const notificacaoRoutes = Router();
 
-  notificacaoRoutes.get("/", (req, res) => controller.listar(req, res));
-  notificacaoRoutes.patch("/:id/lida", (req, res) => controller.marcarComoLida(req, res));
-  notificacaoRoutes.get("/nao-lidas/contagem", (req, res) => controller.contarNaoLidas(req, res));
+    notificacaoRoutes.get("/", (req, res) => controller.listar(req, res));
+    notificacaoRoutes.post("/:id/atender", (req, res) => controller.atender(req, res));
 
-  return notificacaoRoutes;
+    return notificacaoRoutes;
 }
