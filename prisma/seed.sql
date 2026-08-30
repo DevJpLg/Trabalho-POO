@@ -8,8 +8,7 @@
 -- IMPORTANTE:
 --   - Este script é para ambiente de DESENVOLVIMENTO/TESTE, não de produção.
 --   - Os nomes de tabela e coluna espelham fielmente o schema.prisma (@@map).
---   - As senhas dos usuários de exemplo são hashes bcrypt FICTÍCIOS
---     (não representam senhas reais; servem apenas para preencher a coluna).
+--   - As senhas dos usuários de exemplo são hashes bcrypt de "Senha@123".
 --   - O script pode ser executado repetidas vezes — os DROPs no início
 --     limpam tudo antes de recriar.
 --
@@ -177,22 +176,21 @@ CREATE TABLE notificacoes (
 -- =============================================================================
 -- 3. INSERT — Dados de Exemplo para Desenvolvimento/Teste
 -- =============================================================================
--- ATENÇÃO: As senhas abaixo são hashes bcrypt FICTÍCIOS gerados para a string
--- "Senha@123". NÃO são senhas reais e servem apenas para popular a coluna.
--- Em produção, o hash deve ser gerado pela aplicação (ex: bcryptjs).
+-- ATENÇÃO: As senhas abaixo são hashes bcrypt de "Senha@123"
+-- (gerados com bcryptjs, o mesmo método da aplicação).
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
 -- 3.1 Usuários (um de cada perfil)
 -- -----------------------------------------------------------------------------
 INSERT INTO usuarios (id, nome, email, senha, ehAtivo, perfil, numeroCRF) VALUES
-  (1, 'Carlos Gerente',      'carlos.gerente@farmacia.com',    '$2b$10$K3xFZr1Q7qY8vE9wLm5NZeOp2rS4tU6vW8xAyB1cD3eF5gH7iJ9kL', TRUE,  'GERENTE',      NULL),
-  (2, 'Ana Atendente',       'ana.atendente@farmacia.com',     '$2b$10$M4yG0sH2rI8wF1xJ3kL5NeQp6tR9vU2xAyB4cD7eF0gH3iJ6kL8mN', TRUE,  'ATENDENTE',    NULL),
-  (3, 'Dr. Pedro Farmacêutico', 'pedro.farmaceutico@farmacia.com', '$2b$10$O5zH1tI3sJ9xG2yK4lM6NfRq7uS0wV3yBzC5dE8fG1hI4jK7lM9nO', TRUE,  'FARMACEUTICO', 'CRF-RJ-12345'),
-  (4, 'Maria Caixa',         'maria.caixa@farmacia.com',       '$2b$10$Q6aI2uJ4tK0yH3zL5mN7OgSr8vT1xW4zCaD6eF9gH2iJ5kL8mN0oP', TRUE,  'CAIXA',        NULL),
-  (5, 'Roberto Atendente',   'roberto.atendente@farmacia.com', '$2b$10$S7bJ3vK5uL1zI4aM6nO8PhTs9wU2yX5aDcE7fG0hI3jK6lM9nO1pQ', TRUE,  'ATENDENTE',    NULL),
-  (6, 'Dra. Lucia Farmacêutica', 'lucia.farmaceutica@farmacia.com', '$2b$10$U8cK4wL6vM2aJ5bN7oP9QiUt0xV3zY6bEdF8gH1iJ4kL7mN0oP2qR', TRUE,  'FARMACEUTICO', 'CRF-RJ-67890'),
-  (7, 'José Inativo',        'jose.inativo@farmacia.com',      '$2b$10$W9dL5xM7wN3bK6cO8pQ0RjVu1yW4aZ7cFgG9hI2jK5lM8nO1pQ3rS', FALSE, 'ATENDENTE',    NULL);
+  (1, 'Carlos Gerente',      'carlos.gerente@farmacia.com',    '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', TRUE,  'GERENTE',      NULL),
+  (2, 'Ana Atendente',       'ana.atendente@farmacia.com',     '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', TRUE,  'ATENDENTE',    NULL),
+  (3, 'Dr. Pedro Farmacêutico', 'pedro.farmaceutico@farmacia.com', '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', TRUE,  'FARMACEUTICO', 'CRF-RJ-12345'),
+  (4, 'Maria Caixa',         'maria.caixa@farmacia.com',       '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', TRUE,  'CAIXA',        NULL),
+  (5, 'Roberto Atendente',   'roberto.atendente@farmacia.com', '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', TRUE,  'ATENDENTE',    NULL),
+  (6, 'Dra. Lucia Farmacêutica', 'lucia.farmaceutica@farmacia.com', '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', TRUE,  'FARMACEUTICO', 'CRF-RJ-67890'),
+  (7, 'José Inativo',        'jose.inativo@farmacia.com',      '$2b$10$oJbOuVGod/j7UHUcraSY8OYeKB6Xt/eeMOAu2Jtl80ZQehqMY15om', FALSE, 'ATENDENTE',    NULL);
 
 -- -----------------------------------------------------------------------------
 -- 3.2 Produtos

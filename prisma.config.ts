@@ -9,6 +9,7 @@ export default defineConfig({
   },
 
   datasource: {
-    url: env("DATABASE_URL"),
+    // No Windows, `localhost` resolve para IPv6 (::1) e o MySQL escuta em IPv4.
+    url: env("DATABASE_URL").replace("@localhost:", "@127.0.0.1:"),
   },
 });

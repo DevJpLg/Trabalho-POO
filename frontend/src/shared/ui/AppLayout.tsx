@@ -54,7 +54,7 @@ function UserMenu() {
         aria-haspopup="menu"
         onClick={() => setOpen((current) => !current)}
       >
-        <IconeUsuario className="text-[15px]" />
+        {usuario ? iniciais(usuario.nome) : <IconUser size={18} />}
       </button>
 
       {open ? (
@@ -215,7 +215,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <div className="mt-auto shrink-0 border-t border-line pt-3">
           <div className="flex items-center gap-3 rounded-2xl bg-surface-muted px-3 py-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-green text-white">
-              <IconeUsuario className="text-[13px]" />
+              {iniciais(usuario.nome)}
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-ink">{usuario.nome}</p>

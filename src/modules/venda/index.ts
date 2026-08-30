@@ -2,7 +2,7 @@ import crypto from "crypto";
 import ItemVenda from "../itemVenda";
 import Usuario from "../usuario";
 import EstadoVenda from "./state";
-import EstadoVendaFactory from "./state/factory";
+import EstadoVendaFactory from "./state/EstadoVendaFactory";
 
 export enum StatusVenda {
     EM_ANDAMENTO = "EM_ANDAMENTO",
@@ -102,13 +102,13 @@ export default class Venda {
 
         const dataHora = new Date();
         const id = crypto.randomInt(1, 1000000);
-        const estado = EstadoVendaFactory.criarEstado(StatusVenda.EM_ANDAMENTO);
+        const estado = EstadoVendaFactory.criar(StatusVenda.EM_ANDAMENTO);
 
         return new Venda(id, dataHora, estado, idAtendente, idFarmaceutico, idCaixa);
     }
 
     public static rebuildVenda(id: number, dataHora: Date, status: StatusVenda, idAtendente: number | null, idFarmaceutico: number | null, idCaixa: number | null): Venda {
-        const estado = EstadoVendaFactory.criarEstado(status);
+        const estado = EstadoVendaFactory.criar(status);
         return new Venda(id, dataHora, estado, idAtendente, idFarmaceutico, idCaixa);
     }
 
