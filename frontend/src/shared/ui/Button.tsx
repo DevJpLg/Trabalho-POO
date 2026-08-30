@@ -80,7 +80,6 @@ export function IconButton({
   return (
     <button
       type="button"
-      title={label}
       aria-label={label}
       className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150 active:scale-90 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 ${iconTones[tone]} ${className}`}
       {...props}

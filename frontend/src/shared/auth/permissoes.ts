@@ -32,6 +32,9 @@ export const PERFIS_GERENCIAM_ITENS: Perfil[] = ["ATENDENTE", "CAIXA"];
 /** `PATCH /api/itens-venda/.../aprovar|recusar` → exige FARMACEUTICO. */
 export const PERFIS_AVALIAM_ITENS: Perfil[] = ["FARMACEUTICO"];
 
+/** Tela de avaliações liberada para o farmacêutico, conforme exigência do front-end. */
+export const PERFIS_FARMACEUTICO_PODEM_AVALIAR: Perfil[] = ["FARMACEUTICO"];
+
 /** `GET|POST|PUT|DELETE /api/prescricoes` não tem checagem de perfil no backend. */
 export const PERFIS_GERENCIAM_PRESCRICOES: Perfil[] = ["FARMACEUTICO", "ATENDENTE"];
 

@@ -69,7 +69,7 @@ export default class ProdutoController implements InterfaceProdutoController {
             formaFarmaceutica: body.formaFarmaceutica,
             numeroRegAnvisa: body.numeroRegAnvisa,
             tarja: body.tarja,
-            classificacao: body.classificacao,
+            classificacao: body.classificacao ?? "LIVRE",
             quantidadeEstoque: body.quantidadeEstoque !== undefined && body.quantidadeEstoque !== null
                 ? Number(body.quantidadeEstoque)
                 : undefined,

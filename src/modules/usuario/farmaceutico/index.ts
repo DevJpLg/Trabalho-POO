@@ -6,8 +6,8 @@ import { randomInt } from "crypto";
 export default class Farmaceutico extends Usuario {
     private numeroCRM: string;
 
-    constructor(id: number, nome: string, email: string, senha: string, numeroCRM: string,) {
-        super(id, nome, email, senha, Perfil.FARMACEUTICO);
+    constructor(id: number, nome: string, email: string, senha: string, numeroCRM: string, ehAtivo: boolean = true) {
+        super(id, nome, email, senha, Perfil.FARMACEUTICO, ehAtivo);
         this.numeroCRM = numeroCRM;
     }
 

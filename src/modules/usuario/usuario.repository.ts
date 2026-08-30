@@ -5,11 +5,12 @@ import type { PrismaClient } from "../../generated/prisma/client";
 
 export default interface InterfaceUsuarioRepository {
     cadastrarUsuario(usuario: Usuario): Promise<boolean>;
-    listarUsuarios(busca: string): Promise<Usuario[] | null>;
+    listarUsuarios(busca: string): Promise<Usuario[]>;
     buscarUsuarioPorEmail(email: string): Promise<Usuario | null>;
     buscarUsuarioPorId(id: number): Promise<Usuario | null>;
     editarUsuario(usuario: Usuario): Promise<boolean>;
     deletarUsuario(id: number): Promise<boolean>;
+    alterarStatusUsuario(id: number, ehAtivo: boolean): Promise<boolean>;
 }
 
 export default class UsuarioRepository implements InterfaceUsuarioRepository {
@@ -39,43 +40,44 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
     }
 
 
-    public async listarUsuarios(busca: string): Promise<Usuario | Usuario[] | null> {
+    public async listarUsuarios(busca: string): Promise<Usuario[]> {
         const resultado = await this.prisma.usuario.findMany({
-            where: { OR: [
-                { nome: { contains: busca } },
-                { email: { contains: busca } },
-                { numeroCRF: { contains: busca } }
-            ]}
+            where: {
+                OR: [
+                    { nome: { contains: busca } },
+                    { email: { contains: busca } },
+                    { numeroCRF: { contains: busca } }
+                ]
+            },
+            orderBy: [{ nome: "asc" }],
         });
 
-        if (resultado.length > 0) { 
-            const usuarios = resultado.map((rows) =>
-                this.factory.rebuildUsuario(
-                    rows.id,
-                    rows.nome,
-                    rows.email,
-                    rows.senha,
-                    rows.perfil as Perfil,
-                    rows.numeroCRF ?? undefined,
-                )
-            );
-            return usuarios.length === 1 ? usuarios[0] : usuarios;
-        }
-        return null;
+        return resultado.map((rows) =>
+            this.factory.rebuildUsuario(
+                rows.id,
+                rows.nome,
+                rows.email,
+                rows.senha,
+                rows.perfil as Perfil,
+                rows.numeroCRF ?? undefined,
+                rows.ehAtivo,
+            )
+        );
     }
 
 
     public async buscarUsuarioPorEmail(email: string): Promise<Usuario | null> {
-        const resultado = await this.prisma.usuario.findUnique({
-            where: { email: email },
+        const resultado = await this.prisma.usuario.findFirst({
+            where: { email: email, ehAtivo: true },
         });
         return resultado ? this.factory.rebuildUsuario(
-            resultado.id, 
-            resultado.nome, 
-            resultado.email, 
-            resultado.senha, 
-            resultado.perfil as Perfil, 
-            resultado.numeroCRF ?? undefined) : null;
+            resultado.id,
+            resultado.nome,
+            resultado.email,
+            resultado.senha,
+            resultado.perfil as Perfil,
+            resultado.numeroCRF ?? undefined,
+            resultado.ehAtivo) : null;
     }
 
 
@@ -84,12 +86,13 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
             where: { id: id },
         });
         return resultado ? this.factory.rebuildUsuario(
-            resultado.id, 
-            resultado.nome, 
-            resultado.email, 
-            resultado.senha, 
-            resultado.perfil as Perfil, 
-            resultado.numeroCRF ?? undefined) : null;
+            resultado.id,
+            resultado.nome,
+            resultado.email,
+            resultado.senha,
+            resultado.perfil as Perfil,
+            resultado.numeroCRF ?? undefined,
+            resultado.ehAtivo) : null;
     }
 
 
@@ -119,8 +122,25 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
 
 
     public async deletarUsuario(id: number): Promise<boolean> {
-        const resultado = await this.prisma.usuario.delete({
+        const usuarioExistente = await this.prisma.usuario.findUnique({
             where: { id: id },
+        });
+
+        if (!usuarioExistente || !usuarioExistente.ehAtivo) {
+            return false;
+        }
+
+        const resultado = await this.prisma.usuario.update({
+            where: { id: id },
+            data: { ehAtivo: false },
+        });
+        return resultado ? true : false;
+    }
+
+    public async alterarStatusUsuario(id: number, ehAtivo: boolean): Promise<boolean> {
+        const resultado = await this.prisma.usuario.update({
+            where: { id: id },
+            data: { ehAtivo },
         });
         return resultado ? true : false;
     }

@@ -5,21 +5,21 @@ import Farmaceutico from "./farmaceutico";
 import Caixa from "./caixa";
 
 export default interface InterfaceUsuarioFactory {
-    rebuildUsuario(id: number, nome: string, email: string, senha: string, perfil: Perfil, numeroCRM?: string): Usuario;
+    rebuildUsuario(id: number, nome: string, email: string, senha: string, perfil: Perfil, numeroCRM?: string, ehAtivo?: boolean): Usuario;
 }
 
 export default class UsuarioFactory implements InterfaceUsuarioFactory {
 
-    public rebuildUsuario(id: number, nome: string, email: string, senha: string, perfil: Perfil, numeroCRM?: string): Usuario {
+    public rebuildUsuario(id: number, nome: string, email: string, senha: string, perfil: Perfil, numeroCRM?: string, ehAtivo: boolean = true): Usuario {
         switch (perfil) {
             case Perfil.GERENTE:
-                return new Gerente(id, nome, email, senha);
+                return new Gerente(id, nome, email, senha, ehAtivo);
             case Perfil.ATENDENTE:
-                return new Atendente(id, nome, email, senha);
+                return new Atendente(id, nome, email, senha, ehAtivo);
             case Perfil.FARMACEUTICO:
-                return new Farmaceutico(id, nome, email, senha, numeroCRM!);
+                return new Farmaceutico(id, nome, email, senha, numeroCRM!, ehAtivo);
             case Perfil.CAIXA:
-                return new Caixa(id, nome, email, senha);
+                return new Caixa(id, nome, email, senha, ehAtivo);
         }
     }
 

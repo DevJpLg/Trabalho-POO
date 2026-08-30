@@ -3,8 +3,8 @@ import { randomInt } from "crypto";
 
 export default class Caixa extends Usuario {
 
-    constructor(id: number, nome: string, email: string, senha: string,) {
-        super(id, nome, email, senha, Perfil.CAIXA);
+    constructor(id: number, nome: string, email: string, senha: string, ehAtivo: boolean = true) {
+        super(id, nome, email, senha, Perfil.CAIXA, ehAtivo);
     }
 
     public static criarCaixa(nome: string, email: string, senha: string): Caixa {

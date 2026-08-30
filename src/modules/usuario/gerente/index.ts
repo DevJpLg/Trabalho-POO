@@ -3,8 +3,8 @@ import { randomInt } from "crypto";
 
 export default class Gerente extends Usuario {
 
-    constructor(id: number, nome: string, email: string, senha: string,) {
-        super(id, nome, email, senha, Perfil.GERENTE);
+    constructor(id: number, nome: string, email: string, senha: string, ehAtivo: boolean = true) {
+        super(id, nome, email, senha, Perfil.GERENTE, ehAtivo);
     }
 
     public static criarGerente(nome: string, email: string, senha: string): Gerente {

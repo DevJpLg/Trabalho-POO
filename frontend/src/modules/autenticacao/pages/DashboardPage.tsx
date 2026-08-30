@@ -112,10 +112,17 @@ export function DashboardPage() {
     .sort((a, b) => a.quantidadeEstoque - b.quantidadeEstoque)
     .slice(0, 4);
 
-  const maisCaros = [...items].sort((a, b) => Number(b.preco) - Number(a.preco)).slice(0, 8);
+  const maisCaros = [...items]
+    .filter((produto) => produto.isActive)
+    .sort((a, b) => Number(b.preco) - Number(a.preco))
+    .slice(0, 6);
+
   const pontosPreco =
-    maisCaros.length > 0 ? maisCaros.map((produto) => Number(produto.preco) || 0) : [12, 28, 22, 40, 32, 48, 30, 42];
-  const rotulosPreco = maisCaros.map((produto) => produto.nome.split(" ")[0] ?? produto.nome);
+    maisCaros.length > 0 ? maisCaros.map((produto) => Number(produto.preco) || 0) : [12, 28, 22, 40, 32, 48];
+  const rotulosPreco = maisCaros.map((produto) => {
+    const partes = produto.nome.trim().split(/\s+/);
+    return partes.slice(0, 2).join(" ") || produto.nome;
+  });
 
   if (carregando) {
     return (
@@ -148,7 +155,80 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-[25px] bg-surface p-4 shadow-card ring-1 ring-line/60 xl:col-span-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Acesso rápido</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(perfil ? atalhosPorPerfil[perfil] : []).map((atalho) => (
+              <Link
+                key={atalho.to}
+                to={atalho.to}
+                className="group inline-flex items-center gap-2 rounded-full bg-surface-muted px-3 py-2 text-xs font-semibold text-ink transition-all duration-150 hover:bg-brand-green hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40"
+              >
+                <atalho.icone size={14} className="shrink-0 text-ink-muted transition-colors group-hover:text-white" />
+                <span>{atalho.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <StatCard
+          label={catalogoCompleto ? "Produtos ativos" : "Produtos disponíveis"}
+          value={ativos.length}
+          apoio={catalogoCompleto ? `de ${items.length} cadastrados` : "no catálogo vendável"}
+          icon={<IconPills />}
+          tone="green"
+          to="/produtos"
+        />
+
+        {acompanhaValidade ? (
+          <StatCard
+            label="Vencendo em 30 dias"
+            value={vencendo.length}
+            apoio={vencendo.length > 0 ? "precisa de atenção" : "nada urgente"}
+            icon={<IconAlert />}
+            tone="rose"
+            to="/produtos/validades"
+          />
+        ) : (
+          <StatCard
+            label="Produtos bloqueados"
+            value={bloqueados.length}
+            apoio={bloqueados.length > 0 ? "fora de circulação" : "nenhum bloqueio"}
+            icon={<IconShield />}
+            tone="rose"
+            to="/produtos"
+          />
+        )}
+
+        <StatCard
+          label={perfil === "CAIXA" ? "Aguardando pagamento" : "Vendas em aberto"}
+          value={
+            perfil === "CAIXA"
+              ? porStatus("AGUARDANDO_PAGAMENTO").length
+              : porStatus("EM_ANDAMENTO").length
+          }
+          apoio={`${vendas.length} vendas no total`}
+          icon={<IconCart />}
+          tone="mint"
+          to={
+            perfil === "CAIXA"
+              ? "/vendas?status=AGUARDANDO_PAGAMENTO"
+              : "/vendas?status=EM_ANDAMENTO"
+          }
+        />
+
+        <StatCard
+          label="Vendas em avaliação"
+          value={porStatus("EM_AVALIACAO").length}
+          apoio="controlados e prescritos"
+          icon={<IconClipboard />}
+          tone="red"
+          to={acompanhaValidade ? "/avaliacoes" : "/vendas?status=EM_AVALIACAO"}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" style={{ display: "none" }}>
         <StatCard
           label={catalogoCompleto ? "Produtos ativos" : "Produtos disponíveis"}
           value={ativos.length}
@@ -208,32 +288,7 @@ export function DashboardPage() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           <SectionTitle>Painel de estoque</SectionTitle>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <article className="relative overflow-hidden rounded-[25px] bg-brand-red p-6 text-white shadow-brand">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-70"
-                style={{
-                  background:
-                    "radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,0.28) 0%, transparent 55%)",
-                }}
-              />
-              <div className="relative">
-                <div className="flex items-start justify-between">
-                  <p className="text-sm text-white/85">Valor em estoque</p>
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-                    <IconTrend size={18} />
-                  </span>
-                </div>
-                <p className="mt-4 text-[30px] font-bold leading-none tracking-tight">
-                  {moeda(valorEstoque)}
-                </p>
-                <div className="mt-8 flex justify-between text-[11px] font-semibold uppercase tracking-widest text-white/65">
-                  <span>Farmácia</span>
-                  <span>Bairro &amp; Saúde</span>
-                </div>
-              </div>
-            </article>
-
+          <div className="grid gap-4 sm:grid-cols-1">
             <article className="rounded-[25px] bg-surface p-6 shadow-card ring-1 ring-line/60">
               <p className="text-sm text-ink-muted">
                 {catalogoCompleto ? "Itens cadastrados" : "Itens no catálogo"}
@@ -324,36 +379,46 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader titulo="Acesso rápido" descricao="Os atalhos do seu perfil." />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(perfil ? atalhosPorPerfil[perfil] : []).map((atalho) => (
-              <Link
-                key={atalho.to}
-                to={atalho.to}
-                className="group flex items-center gap-3 rounded-2xl bg-surface-muted px-4 py-3 text-sm font-semibold text-ink transition-all duration-150 hover:bg-brand-green hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40"
-              >
-                <atalho.icone
-                  size={18}
-                  className="shrink-0 text-ink-muted transition-colors group-hover:text-white"
-                />
-                <span className="truncate">{atalho.label}</span>
-                <IconArrowRight
-                  size={16}
-                  className="ml-auto shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                />
-              </Link>
-            ))}
-          </div>
-        </Card>
-
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-1">
         <Card>
           <CardHeader
             titulo="Preços em evidência"
             descricao="Os itens mais caros do catálogo."
+            acao={
+              <span className="rounded-full bg-brand-red-soft px-3 py-1.5 text-[11px] font-semibold text-brand-red">
+                Top {maisCaros.length || 0}
+              </span>
+            }
           />
-          <AreaChart points={pontosPreco} labels={rotulosPreco} formatar={moeda} />
+          <div className="space-y-4">
+            <AreaChart points={pontosPreco} labels={rotulosPreco} formatar={moeda} />
+
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {maisCaros.length > 0 ? (
+                maisCaros.map((produto, indice) => (
+                  <div
+                    key={produto.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl bg-surface-muted px-3 py-2"
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-red-soft text-[11px] font-bold text-brand-red">
+                        {indice + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink">{produto.nome}</p>
+                        <p className="text-[11px] text-ink-muted">{produto.categoria}</p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-sm font-bold text-brand-red">
+                      {moeda(Number(produto.preco))}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-ink-muted">Nenhum produto cadastrado para mostrar preços.</p>
+              )}
+            </div>
+          </div>
         </Card>
       </div>
 

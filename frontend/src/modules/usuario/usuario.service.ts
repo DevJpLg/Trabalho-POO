@@ -7,6 +7,7 @@ export interface InterfaceUsuarioService {
   cadastrar(dados: UsuarioInput): Promise<MessageResponse>;
   editar(id: number, dados: UsuarioInput): Promise<MessageResponse>;
   deletar(id: number): Promise<void>;
+  alternarStatus(id: number, isActive: boolean): Promise<MessageResponse>;
 }
 
 function normalizar(valor: unknown): string {
@@ -53,5 +54,9 @@ export class UsuarioService implements InterfaceUsuarioService {
 
   deletar(id: number): Promise<void> {
     return this.repository.deletar(id);
+  }
+
+  alternarStatus(id: number, isActive: boolean): Promise<MessageResponse> {
+    return this.repository.alternarStatus(id, isActive);
   }
 }

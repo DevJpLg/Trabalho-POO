@@ -11,13 +11,15 @@ export default abstract class Usuario {
     private email: string;
     private senha: string;
     private perfil: Perfil;
+    private ehAtivo: boolean;
 
-    protected constructor(id: number, nome: string, email: string, senha: string, perfil: Perfil) {
+    protected constructor(id: number, nome: string, email: string, senha: string, perfil: Perfil, ehAtivo: boolean = true) {
         this.id = id;
         this.nome = nome;
         this.email = email;
         this.senha = senha;
         this.perfil = perfil;
+        this.ehAtivo = ehAtivo;
     }
 
     public getId(): number { return this.id; }
@@ -25,6 +27,8 @@ export default abstract class Usuario {
     public getEmail(): string { return this.email; }
     public getSenha(): string { return this.senha; }
     public getPerfil(): Perfil { return this.perfil; }
+    public getEhAtivo(): boolean { return this.ehAtivo; }
+    public setEhAtivo(ehAtivo: boolean): void { this.ehAtivo = ehAtivo; }
 
     protected static validarUsuario(nome: string, email: string, senha: string): boolean {
         if(nome === "" || email === "" || senha === "") {

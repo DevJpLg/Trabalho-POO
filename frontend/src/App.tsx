@@ -3,9 +3,9 @@ import { AuthProvider } from "./shared/auth/AuthContext";
 import { ProtectedRoute } from "./shared/auth/ProtectedRoute";
 import { RoleRoute } from "./shared/auth/RoleRoute";
 import {
-  PERFIS_AVALIAM_ITENS,
   PERFIS_CONTROLAM_VALIDADE,
   PERFIS_GERENCIAM_PRESCRICOES,
+  PERFIS_FARMACEUTICO_PODEM_AVALIAR,
 } from "./shared/auth/permissoes";
 import { AppLayout } from "./shared/ui/AppLayout";
 import { LoginPage } from "./modules/autenticacao/pages/LoginPage";
@@ -45,7 +45,7 @@ export default function App() {
                 <Route path="prescricoes" element={<PrescricoesPage />} />
               </Route>
 
-              <Route element={<RoleRoute allow={PERFIS_AVALIAM_ITENS} />}>
+              <Route element={<RoleRoute allow={PERFIS_FARMACEUTICO_PODEM_AVALIAR} />}>
                 <Route path="avaliacoes" element={<AvaliacoesPage />} />
               </Route>
 
