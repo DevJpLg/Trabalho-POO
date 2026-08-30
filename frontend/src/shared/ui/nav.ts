@@ -4,19 +4,16 @@ import {
   IconCart,
   IconClipboardCheck,
   IconFileMedical,
-  IconHeadset,
   IconHome,
   IconPills,
-  IconRegister,
   IconUsers,
 } from "./icons";
 import {
   PERFIS_AVALIAM_ITENS,
-  PERFIS_CONSULTAM_PRODUTOS,
   PERFIS_CONTROLAM_VALIDADE,
   PERFIS_GERENCIAM_PRESCRICOES,
   PERFIS_GERENCIAM_PRODUTOS,
-  PERFIS_VEEM_VENDAS,
+  PERFIS_GERENCIAM_USUARIOS,
   temPerfil,
 } from "../auth/permissoes";
 
@@ -42,8 +39,8 @@ export type NavItem = {
 };
 
 /**
- * Menu lateral. Cada item só aparece para perfis que conseguem, de fato, usar a
- * rota da API por trás dele — as listas de perfis vêm de `shared/auth/permissoes`.
+ * Menu lateral por perfil. A ordem dos itens é a ordem na tela; `roles` define
+ * quem vê cada entrada.
  */
 export const navItems: NavItem[] = [
   {
@@ -55,18 +52,15 @@ export const navItems: NavItem[] = [
     roles: ALL_PERFIS,
   },
   {
-    id: "atendimento",
-    label: "Atendimento",
-    icon: IconHeadset,
-    to: "/atendimento",
-    roles: ["ATENDENTE"],
-  },
-  {
-    id: "caixa",
-    label: "Caixa",
-    icon: IconRegister,
-    to: "/caixa",
-    roles: ["CAIXA"],
+    id: "produtos",
+    label: "Produtos",
+    icon: IconPills,
+    roles: ["GERENTE", "FARMACEUTICO"],
+    children: [
+      { to: "/produtos", label: "Todos os Produtos", roles: PERFIS_GERENCIAM_PRODUTOS },
+      { to: "/produtos", label: "Consultar Produtos", roles: ["FARMACEUTICO"] },
+      { to: "/produtos/validades", label: "Controle de Validades", roles: PERFIS_CONTROLAM_VALIDADE },
+    ],
   },
   {
     id: "avaliacoes",
@@ -76,16 +70,11 @@ export const navItems: NavItem[] = [
     roles: PERFIS_AVALIAM_ITENS,
   },
   {
-    id: "produtos",
-    label: "Produtos",
-    icon: IconPills,
-    roles: PERFIS_CONSULTAM_PRODUTOS,
-    children: [
-      { to: "/produtos", label: "Todos os Produtos", roles: PERFIS_GERENCIAM_PRODUTOS },
-      { to: "/produtos/entrada", label: "Entrada de Produtos", roles: PERFIS_GERENCIAM_PRODUTOS },
-      { to: "/produtos", label: "Consultar Produtos", roles: ["ATENDENTE", "CAIXA", "FARMACEUTICO"] },
-      { to: "/produtos/validades", label: "Controle de Validades", roles: PERFIS_CONTROLAM_VALIDADE },
-    ],
+    id: "vendas",
+    label: "Vendas",
+    icon: IconCart,
+    to: "/vendas",
+    roles: ["ATENDENTE", "CAIXA"],
   },
   {
     id: "prescricoes",
@@ -95,18 +84,11 @@ export const navItems: NavItem[] = [
     roles: PERFIS_GERENCIAM_PRESCRICOES,
   },
   {
-    id: "vendas",
-    label: "Vendas",
-    icon: IconCart,
-    to: "/vendas",
-    roles: PERFIS_VEEM_VENDAS,
-  },
-  {
     id: "usuarios",
     label: "Usuários",
     icon: IconUsers,
     to: "/usuarios",
-    roles: ALL_PERFIS,
+    roles: PERFIS_GERENCIAM_USUARIOS,
   },
 ];
 
@@ -124,7 +106,6 @@ export const pageTitles: Record<string, string> = {
   "/caixa": "Caixa",
   "/avaliacoes": "Avaliações",
   "/produtos": "Produtos",
-  "/produtos/entrada": "Entrada de Produtos",
   "/produtos/validades": "Controle de Validades",
   "/prescricoes": "Prescrições",
   "/vendas": "Vendas",

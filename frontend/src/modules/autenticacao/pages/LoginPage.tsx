@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../shared/auth/AuthContext";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
-import { Alert } from "../../../shared/ui/PageHeader";
+import { toastErro } from "../../../shared/ui/feedback";
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import { IconEye, IconEyeOff, IconRefresh } from "../../../shared/ui/icons";
@@ -17,7 +17,6 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
@@ -26,14 +25,13 @@ export function LoginPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setError(null);
     setLoading(true);
     try {
       const { token, usuario } = await service.login(email, senha);
       setSession(token, usuario);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(getErrorMessage(err, "Falha ao autenticar."));
+      toastErro(getErrorMessage(err, "Falha ao autenticar."));
     } finally {
       setLoading(false);
     }
@@ -66,8 +64,6 @@ export function LoginPage() {
           onSubmit={onSubmit}
           className="space-y-4 rounded-[28px] bg-surface p-8 shadow-card ring-1 ring-line animate-surgir"
         >
-          {error ? <Alert onClose={() => setError(null)}>{error}</Alert> : null}
-
           <Input
             label="E-mail"
             type="email"

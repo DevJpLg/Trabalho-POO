@@ -15,7 +15,8 @@ import { Checkbox, Input } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { DateInput } from "../../../shared/ui/DateInput";
 import { Modal } from "../../../shared/ui/Modal";
-import { Alert, EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
+import { pedirConfirmacao, toastErro, toastSucesso } from "../../../shared/ui/feedback";
+import { EmptyState, LoadingState } from "../../../shared/ui/PageHeader";
 import { BarraListagem } from "../../../shared/ui/BarraListagem";
 import { RowActions, Table } from "../../../shared/ui/Table";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
@@ -72,8 +73,6 @@ export function PrescricoesPage() {
   const [rows, setRows] = useState<PrescricaoDTO[]>([]);
   const [vendas, setVendas] = useState<VendaDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PrescricaoDTO | null>(null);
@@ -83,11 +82,10 @@ export function PrescricoesPage() {
   const carregar = useCallback(
     async (termo: string) => {
       setLoading(true);
-      setError(null);
       try {
         setRows(await service.listar(termo));
       } catch (err) {
-        setError(getErrorMessage(err));
+        toastErro(getErrorMessage(err));
         setRows([]);
       } finally {
         setLoading(false);
@@ -131,42 +129,43 @@ export function PrescricoesPage() {
     event.preventDefault();
 
     if (!form.vendaId) {
-      setError("Selecione a venda vinculada à prescrição.");
+      toastErro("Selecione a venda vinculada à prescrição.");
       return;
     }
     if (form.dataEmissao > form.dataValidade) {
-      setError("A data de emissão não pode ser posterior à validade.");
+      toastErro("A data de emissão não pode ser posterior à validade.");
       return;
     }
 
     setSaving(true);
-    setError(null);
-    setSuccess(null);
     try {
       const payload: PrescricaoInput = { ...form, vendaId: Number(form.vendaId) };
       const resultado = editing
         ? await service.editar(Number(editing.id), payload)
         : await service.cadastrar(payload);
-      setSuccess(resultado.message);
+      toastSucesso(resultado.message);
       setModalOpen(false);
       await carregar(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
   async function onDelete(prescricao: PrescricaoDTO) {
-    if (!confirm(`Excluir a prescrição ${prescricao.numeroPrescricao}?`)) return;
-    setError(null);
-    setSuccess(null);
+    const confirmou = await pedirConfirmacao({
+      titulo: "Excluir prescrição?",
+      texto: `A prescrição ${prescricao.numeroPrescricao} será removida. Esta ação não pode ser desfeita.`,
+      confirmar: "Excluir",
+    });
+    if (!confirmou) return;
     try {
       const resultado = await service.deletar(Number(prescricao.id));
-      setSuccess(resultado?.message ?? "Prescrição removida.");
+      toastSucesso(resultado?.message ?? "Prescrição removida.");
       await carregar(busca);
     } catch (err) {
-      setError(getErrorMessage(err));
+      toastErro(getErrorMessage(err));
     }
   }
 
@@ -192,17 +191,6 @@ export function PrescricoesPage() {
           </Button>
         }
       />
-
-      {error ? (
-        <div className="mb-4">
-          <Alert>{error}</Alert>
-        </div>
-      ) : null}
-      {success ? (
-        <div className="mb-4">
-          <Alert tone="success">{success}</Alert>
-        </div>
-      ) : null}
 
       {loading ? (
         <LoadingState />
@@ -286,7 +274,6 @@ export function PrescricoesPage() {
               key: "acoes",
               header: "Ações",
               fim: true,
-              className: "min-w-24",
               render: (prescricao) => (
                 <RowActions>
                   <IconButton label="Editar prescrição" onClick={() => openEdit(prescricao)}>

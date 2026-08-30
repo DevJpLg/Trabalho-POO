@@ -256,7 +256,7 @@ export class ProdutoService implements InterfaceProdutoService {
     /* ! ========== Alterar Validade do Produto ========== */
     public async alterarValidade(usuarioLogado: Usuario, id: number, novaData: Date): Promise<void | Error> {
         try {
-            if(!(await this.autorizacaoService.usuarioPodeGerenciarProdutos(usuarioLogado))) {
+            if(!(await this.autorizacaoService.usuarioPodeGerenciarValidades(usuarioLogado))) {
                 return new Error("Usuário não autorizado");
             }
 

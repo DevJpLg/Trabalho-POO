@@ -117,7 +117,10 @@ export function DateInput({
 
   const campoRef = useRef<HTMLDivElement>(null);
   const painelRef = useRef<HTMLDivElement>(null);
-  const posicao = usePosicaoPopover(aberto, campoRef, 360);
+  const posicao = usePosicaoPopover(aberto, campoRef, 280, {
+    larguraMaxima: 272,
+    alinhar: "fim",
+  });
   const fechar = useCallback(() => setAberto(false), []);
   useFecharAoSair(aberto, fechar, campoRef, painelRef);
 
@@ -221,49 +224,51 @@ export function DateInput({
         ? createPortal(
             <div
               ref={painelRef}
-              className={`${painelFlutuante} p-3`}
+              className={`${painelFlutuante} p-2`}
               style={{
                 position: "fixed",
                 top: posicao.paraCima ? undefined : posicao.top,
                 bottom: posicao.paraCima ? window.innerHeight - posicao.top : undefined,
                 left: posicao.left,
-                width: Math.max(posicao.width, 288),
+                width: posicao.width,
+                maxHeight: posicao.maxHeight,
+                overflowY: "auto",
               }}
             >
-              <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="mb-1.5 flex items-center justify-between gap-1">
                 <button
                   type="button"
                   onClick={() => andarMes(-1)}
                   aria-label="Mês anterior"
-                  className="flex size-8 items-center justify-center rounded-lg text-ink-muted transition hover:bg-surface-hover hover:text-ink"
+                  className="flex size-7 items-center justify-center rounded-lg text-ink-muted transition hover:bg-surface-hover hover:text-ink"
                 >
-                  <IconChevronDown size={16} className="rotate-90" />
+                  <IconChevronDown size={14} className="rotate-90" />
                 </button>
-                <p className="text-sm font-semibold text-ink">
+                <p className="text-[13px] font-semibold text-ink">
                   {MESES[mesVisivel.mes]} {mesVisivel.ano}
                 </p>
                 <button
                   type="button"
                   onClick={() => andarMes(1)}
                   aria-label="Próximo mês"
-                  className="flex size-8 items-center justify-center rounded-lg text-ink-muted transition hover:bg-surface-hover hover:text-ink"
+                  className="flex size-7 items-center justify-center rounded-lg text-ink-muted transition hover:bg-surface-hover hover:text-ink"
                 >
-                  <IconChevronDown size={16} className="-rotate-90" />
+                  <IconChevronDown size={14} className="-rotate-90" />
                 </button>
               </div>
 
-              <div className="mb-1 grid grid-cols-7 gap-0.5">
+              <div className="mb-0.5 grid grid-cols-7">
                 {DIAS_SEMANA.map((dia) => (
                   <span
                     key={dia}
-                    className="py-1 text-center text-[11px] font-semibold uppercase text-ink-muted"
+                    className="py-0.5 text-center text-[10px] font-semibold uppercase text-ink-muted"
                   >
                     {dia}
                   </span>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="grid grid-cols-7">
                 {semanas.flat().map((dia) => {
                   const chave = chaveDoDia(dia);
                   const doMes = dia.getMonth() === mesVisivel.mes;
@@ -275,7 +280,7 @@ export function DateInput({
                       key={chave}
                       type="button"
                       onClick={() => escolherDia(dia)}
-                      className={`flex size-9 items-center justify-center rounded-lg text-[13px] transition-colors ${
+                      className={`flex h-8 items-center justify-center rounded-md text-[12px] transition-colors ${
                         selecionado
                           ? "bg-brand-green font-bold text-white"
                           : ehHoje
@@ -291,11 +296,11 @@ export function DateInput({
                 })}
               </div>
 
-              <div className="mt-2 flex items-center justify-between gap-2 border-t border-line pt-2">
+              <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-line pt-1.5">
                 <button
                   type="button"
                   onClick={() => escolherDia(new Date())}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-brand-green transition hover:bg-brand-green-soft"
+                  className="rounded-lg px-2 py-1 text-xs font-semibold text-brand-green transition hover:bg-brand-green-soft"
                 >
                   Hoje
                 </button>
@@ -306,7 +311,7 @@ export function DateInput({
                     setTexto("");
                     setAberto(false);
                   }}
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-muted transition hover:bg-surface-hover hover:text-ink"
+                  className="rounded-lg px-2 py-1 text-xs font-semibold text-ink-muted transition hover:bg-surface-hover hover:text-ink"
                 >
                   Limpar
                 </button>

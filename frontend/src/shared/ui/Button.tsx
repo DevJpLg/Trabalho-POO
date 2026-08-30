@@ -44,13 +44,17 @@ export function Button({
   );
 }
 
-type Tone = "neutral" | "success" | "danger";
+type Tone = "neutral" | "success" | "danger" | "warning";
 
 const iconTones: Record<Tone, string> = {
-  neutral: "text-ink-muted hover:bg-surface-hover hover:text-ink focus-visible:ring-brand-green/35",
+  neutral:
+    "bg-surface-muted text-ink hover:bg-surface-hover focus-visible:ring-brand-green/35",
   success:
-    "text-brand-green hover:bg-brand-green-soft hover:text-brand-green-dark focus-visible:ring-brand-green/35",
-  danger: "text-brand-red hover:bg-brand-red-soft focus-visible:ring-brand-red/35",
+    "bg-brand-green text-white hover:bg-brand-green-dark focus-visible:ring-brand-green/40",
+  danger:
+    "bg-brand-red-soft text-brand-red hover:bg-brand-red hover:text-white focus-visible:ring-brand-red/35",
+  warning:
+    "bg-brand-red text-white hover:bg-brand-red-dark focus-visible:ring-brand-red/40",
 };
 
 type IconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "title"> & {
@@ -70,6 +74,7 @@ export function IconButton({
   tone = "neutral",
   className = "",
   children,
+  onClick,
   ...props
 }: IconButtonProps) {
   return (
@@ -77,8 +82,12 @@ export function IconButton({
       type="button"
       title={label}
       aria-label={label}
-      className={`inline-flex size-9 shrink-0 items-center justify-center rounded-xl transition-all duration-150 active:scale-90 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 ${iconTones[tone]} ${className}`}
+      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150 active:scale-90 disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 ${iconTones[tone]} ${className}`}
       {...props}
+      onClick={(evento) => {
+        evento.stopPropagation();
+        onClick?.(evento);
+      }}
     >
       {children}
     </button>

@@ -29,6 +29,81 @@ function exigirQuantidade(qtd: number, rotulo: string): void {
   }
 }
 
+function textoOuNulo(valor?: string | null): string | null {
+  if (valor == null) return null;
+  const texto = valor.trim();
+  return texto === "" ? null : texto;
+}
+
+function isoOuNulo(valor?: string | null): string | null {
+  const texto = textoOuNulo(valor);
+  if (!texto) return null;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(texto)) {
+    throw new Error("Data inválida. Use o calendário ou o formato DD/MM/AAAA.");
+  }
+  const data = new Date(`${texto.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(data.getTime())) {
+    throw new Error("Data inválida.");
+  }
+  return texto.slice(0, 10);
+}
+
+/** Alinha o payload ao que o controller lê e evita string vazia no lugar de null. */
+function payloadProduto(dados: ProdutoInput): ProdutoInput {
+  const classificacao = dados.classificacao ?? "LIVRE";
+  const dataFabricacao = isoOuNulo(dados.dataFabricacao);
+  const validade = isoOuNulo(dados.validade);
+
+  if (!dados.nome?.trim()) throw new Error("Nome inválido");
+  if (!dados.codigoBarras?.trim()) throw new Error("Código de barras inválido");
+  if (!dados.fabricante?.trim()) throw new Error("Fabricante inválido");
+  if (!dados.categoria?.trim()) throw new Error("Categoria inválida");
+  if (!dataFabricacao) throw new Error("Data de fabricação inválida");
+  if (!validade) throw new Error("Data de validade inválida");
+  if (validade < dataFabricacao) {
+    throw new Error("Data de validade menor que a data de fabricação");
+  }
+  if (!Number.isFinite(dados.preco) || dados.preco < 0) throw new Error("Preço inválido");
+
+  if (classificacao !== "LIVRE") {
+    if (!textoOuNulo(dados.principioAtivo)) throw new Error("Princípio ativo inválido");
+    if (!textoOuNulo(dados.concentracao)) throw new Error("Concentração inválida");
+    if (!textoOuNulo(dados.formaFarmaceutica)) throw new Error("Forma farmacêutica inválida");
+    if (!textoOuNulo(dados.numeroRegAnvisa)) throw new Error("Número de registro ANVISA inválido");
+    if (!textoOuNulo(dados.tarja)) throw new Error("Tarja inválida");
+    if (!textoOuNulo(dados.classeControle)) throw new Error("Classe de controle inválida");
+    if (dados.validadeReceita == null || dados.validadeReceita <= 0) {
+      throw new Error("Validade de receita inválida");
+    }
+    if (dados.quantidadeMaxima == null || dados.quantidadeMaxima <= 0) {
+      throw new Error("Quantidade máxima inválida");
+    }
+  }
+
+  return {
+    ...dados,
+    nome: dados.nome.trim(),
+    codigoBarras: dados.codigoBarras.trim(),
+    principioAtivo: dados.principioAtivo.trim(),
+    fabricante: dados.fabricante.trim(),
+    categoria: dados.categoria.trim(),
+    classificacao,
+    descricao: textoOuNulo(dados.descricao),
+    concentracao: textoOuNulo(dados.concentracao),
+    formaFarmaceutica: textoOuNulo(dados.formaFarmaceutica),
+    numeroRegAnvisa: textoOuNulo(dados.numeroRegAnvisa),
+    tarja: textoOuNulo(dados.tarja),
+    localEstoque: textoOuNulo(dados.localEstoque),
+    classeControle: textoOuNulo(dados.classeControle),
+    lote: textoOuNulo(dados.lote),
+    validade,
+    dataFabricacao,
+    retencaoReceita: Boolean(dados.retencaoReceita),
+    generico: Boolean(dados.generico),
+    isActive: dados.isActive ?? true,
+  };
+}
+
 export class ProdutoService implements InterfaceProdutoService {
   constructor(private readonly repository: InterfaceProdutoRepository) {}
 
@@ -49,11 +124,11 @@ export class ProdutoService implements InterfaceProdutoService {
   }
 
   cadastrar(dados: ProdutoInput): Promise<MessageResponse> {
-    return this.repository.cadastrar(dados);
+    return this.repository.cadastrar(payloadProduto(dados));
   }
 
   editar(id: number, dados: ProdutoInput): Promise<MessageResponse> {
-    return this.repository.editar(id, dados);
+    return this.repository.editar(id, payloadProduto(dados));
   }
 
   deletar(id: number): Promise<void> {
@@ -74,17 +149,15 @@ export class ProdutoService implements InterfaceProdutoService {
       throw new Error("Quantidade em estoque insuficiente para a baixa.");
     }
     return this.repository.editar(produto.id, {
-      ...produtoParaInput(produto),
+      ...payloadProduto(produtoParaInput(produto)),
       quantidadeEstoque: produto.quantidadeEstoque - qtd,
     });
   }
 
   alterarValidade(id: number, novaValidade: string): Promise<MessageResponse> {
-    const data = new Date(novaValidade);
-    if (!novaValidade || Number.isNaN(data.getTime())) {
-      throw new Error("Data de validade inválida.");
-    }
-    return this.repository.alterarValidade(id, novaValidade);
+    const data = isoOuNulo(novaValidade);
+    if (!data) throw new Error("Data de validade inválida.");
+    return this.repository.alterarValidade(id, data);
   }
 
   bloquear(id: number): Promise<MessageResponse> {
