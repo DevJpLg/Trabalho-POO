@@ -56,7 +56,7 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
                   });
 
         if (resultado.length > 0) { 
-            const usuarios = resultado.map((rows) =>
+            return resultado.map((rows) =>
                 this.factory.rebuildUsuario(
                     rows.id,
                     rows.nome,
@@ -64,9 +64,9 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
                     rows.senha,
                     rows.perfil as Perfil,
                     rows.numeroCRF ?? undefined,
+                    rows.ehAtivo,
                 )
             );
-            return usuarios.length === 1 ? usuarios[0] : usuarios;
         }
         return null;
     }
@@ -132,15 +132,19 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
             where: { id: id },
         });
 
-        if (!usuarioExistente || !usuarioExistente.ehAtivo) {
+        if (!usuarioExistente) {
             return false;
         }
 
-        const resultado = await this.prisma.usuario.update({
-            where: { id: id },
-            data: { ehAtivo: false },
+        await this.prisma.$transaction(async (tx) => {
+            await tx.venda.updateMany({ where: { atendenteId: id }, data: { atendenteId: null } });
+            await tx.venda.updateMany({ where: { caixaId: id }, data: { caixaId: null } });
+            await tx.venda.updateMany({ where: { farmaceuticoId: id }, data: { farmaceuticoId: null } });
+            await tx.notificacao.updateMany({ where: { farmaceuticoId: id }, data: { farmaceuticoId: null } });
+            await tx.usuario.delete({ where: { id } });
         });
-        return resultado ? true : false;
+
+        return true;
     }
 
     public async alterarStatusUsuario(id: number, ehAtivo: boolean): Promise<boolean> {

@@ -25,7 +25,7 @@ import {
 import { Badge } from "../../../shared/ui/Badge";
 import { Card, CardHeader } from "../../../shared/ui/Card";
 import { AreaChart, BarChart, DonutChart } from "../../../shared/ui/charts";
-import { data as formatarData, dataHora, diasAte, moeda } from "../../../shared/ui/format";
+import { data as formatarData, dataHora, diasAte, JANELA_VALIDADE_DIAS, moeda } from "../../../shared/ui/format";
 import { Skeleton } from "../../../shared/ui/PageHeader";
 import {
   IconAlert,
@@ -154,8 +154,8 @@ function rotuloValidade(dias: number | null) {
 
 function toneValidade(dias: number | null) {
   if (dias === null) return "neutral" as const;
-  if (dias < 7) return "red" as const;
-  if (dias <= 15) return "amber" as const;
+  if (dias < 0) return "red" as const;
+  if (dias <= JANELA_VALIDADE_DIAS) return "amber" as const;
   return "green" as const;
 }
 
@@ -257,7 +257,7 @@ export function DashboardPage() {
     Promise.allSettled([
       produtos.listarPorPerfil(catalogoCompleto, ""),
       carregaVendas ? vendasApi.listar() : Promise.resolve<VendaDTO[]>([]),
-      acompanhaValidade ? produtos.listarValidades() : Promise.resolve<ProdutoDTO[]>([]),
+      acompanhaValidade ? produtos.listarValidades(JANELA_VALIDADE_DIAS) : Promise.resolve<ProdutoDTO[]>([]),
       carregaPrescricoes ? prescricoesApi.listar() : Promise.resolve<PrescricaoDTO[]>([]),
       carregaUsuarios ? usuariosApi.listar() : Promise.resolve<UsuarioDTO[]>([]),
     ]).then(([resProdutos, resVendas, resValidades, resPrescricoes, resUsuarios]) => {
@@ -344,7 +344,7 @@ export function DashboardPage() {
 
         {acompanhaValidade ? (
           <StatCard
-            label="Vencendo em 30 dias"
+            label="Vencendo em 15 dias"
             value={vencendo.length}
             apoio={vencendo.length > 0 ? "precisa de atenção" : "nada urgente"}
             icon={<IconAlert />}
@@ -743,7 +743,7 @@ function PainelFarmaceutico({
 
   const urgentes = [...(vencendo.length ? vencendo : produtos)]
     .map((produto) => ({ produto, dias: diasAte(produto.validade) }))
-    .filter((item) => item.dias !== null && item.dias <= 30)
+    .filter((item) => item.dias !== null && item.dias <= JANELA_VALIDADE_DIAS)
     .sort((a, b) => (a.dias ?? 0) - (b.dias ?? 0))
     .slice(0, 8);
 
@@ -789,13 +789,13 @@ function PainelFarmaceutico({
       <Card>
         <CardHeader
           titulo="Vencendo em breve"
-          descricao="Produtos que saem da validade nos próximos 30 dias, dos mais urgentes aos demais."
+          descricao="Produtos vencidos ou que saem da validade nos próximos 15 dias, dos mais urgentes aos demais."
           acao={<LinkVerTodos to="/produtos/validades">Ver todos</LinkVerTodos>}
         />
         <MiniTable
           rows={urgentes}
           rowKey={(item) => item.produto.id}
-          vazio="Nenhum produto vencendo nos próximos 30 dias."
+          vazio="Nenhum produto vencendo nos próximos 15 dias."
           columns={[
             {
               key: "nome",

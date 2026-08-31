@@ -148,10 +148,10 @@ export class HttpClient implements InterfaceHttpClient {
 
     const data = await lerCorpo(response);
 
-    // 204 não deveria ter corpo, mas o DELETE de produto manda JSON mesmo assim.
-    // Precisa drenar o stream (acima) senão o próximo fetch na mesma conexão falha.
-    if (response.status === 204) {
-      return undefined as T;
+    // 204/205 não deveriam ter corpo. O DELETE de produto ainda assim manda JSON
+    // no Express; drenar o stream (acima) evita o próximo fetch falhar na conexão.
+    if (response.status === 204 || response.status === 205) {
+      return (data ?? undefined) as T;
     }
 
     if (!response.ok) {
@@ -161,7 +161,7 @@ export class HttpClient implements InterfaceHttpClient {
       throw new ApiError(extrairMensagem(data, response.status), response.status);
     }
 
-    return data as T;
+    return (data ?? undefined) as T;
   }
 
   private async requestBlob(url: string, init: RequestInit, options?: RequestOptions): Promise<Blob> {

@@ -42,12 +42,15 @@ const tonesPerfil: Record<Perfil, "red" | "green" | "amber" | "neutral"> = {
 
 const tonePerfil = (perfil: Perfil) => tonesPerfil[perfil];
 
-const emptyForm: UsuarioInput = {
+type FormUsuario = UsuarioInput & { isActive: boolean };
+
+const emptyForm: FormUsuario = {
   nome: "",
   email: "",
   senha: "",
   perfil: "ATENDENTE",
   numeroCRM: "",
+  isActive: true,
 };
 
 /**
@@ -73,8 +76,9 @@ function GestaoDeUsuarios() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UsuarioDTO | null>(null);
-  const [form, setForm] = useState<UsuarioInput>(emptyForm);
+  const [form, setForm] = useState<FormUsuario>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
 
   const carregar = useCallback(
     async (termo: string) => {
@@ -123,6 +127,7 @@ function GestaoDeUsuarios() {
       senha: "",
       perfil: usuario.perfil,
       numeroCRM: "",
+      isActive: usuario.isActive,
     });
     setModalOpen(true);
   }
@@ -179,22 +184,29 @@ function GestaoDeUsuarios() {
     }
   }
 
-  async function onToggleStatus(usuario: UsuarioDTO) {
-    if (usuario.id === usuarioLogado?.id) {
+  async function onToggleStatus() {
+    if (!editing) return;
+    if (editing.id === usuarioLogado?.id) {
       toastErro("Você não pode alterar o próprio status de acesso enquanto estiver logado com ele.");
       return;
     }
 
+    const proximoStatus = !editing.isActive;
+    setTogglingStatus(true);
     try {
-      const proximoStatus = !usuario.isActive;
-      const resultado = await service.alternarStatus(usuario.id, proximoStatus);
+      const resultado = await service.alternarStatus(editing.id, proximoStatus);
+      const atualizado = { ...editing, isActive: proximoStatus };
+      setEditing(atualizado);
+      setForm((atual) => ({ ...atual, isActive: proximoStatus }));
       setRows((atual) =>
-        atual.map((item) => (item.id === usuario.id ? { ...item, isActive: proximoStatus } : item)),
+        atual.map((item) => (item.id === editing.id ? { ...item, isActive: proximoStatus } : item)),
       );
       toastSucesso(resultado.message);
       await carregar(busca);
     } catch (err) {
       toastErro(getErrorMessage(err));
+    } finally {
+      setTogglingStatus(false);
     }
   }
 
@@ -264,14 +276,6 @@ function GestaoDeUsuarios() {
               fim: true,
               render: (usuario) => (
                 <RowActions>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={usuario.isActive ? "secondary" : "success"}
-                    onClick={() => void onToggleStatus(usuario)}
-                  >
-                    {usuario.isActive ? "Inativar" : "Ativar"}
-                  </Button>
                   <IconButton label="Editar usuário" onClick={() => openEdit(usuario)}>
                     <IconPencil size={17} />
                   </IconButton>
@@ -345,6 +349,34 @@ function GestaoDeUsuarios() {
                 O cadastro atual da API não persiste o CRF; o campo fica registrado aqui para quando
                 o backend salvar o dado.
               </p>
+            </div>
+          ) : null}
+          {editing ? (
+            <div className="flex flex-col gap-3 rounded-2xl bg-surface-muted px-4 py-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink">Status de acesso</p>
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  {editing.id === usuarioLogado?.id
+                    ? "Você não pode alterar o próprio status enquanto estiver logado."
+                    : editing.isActive
+                      ? "Usuário ativo: consegue entrar no painel."
+                      : "Usuário inativo: o acesso ao painel está bloqueado."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={editing.isActive ? "secondary" : "success"}
+                className="shrink-0"
+                disabled={togglingStatus || editing.id === usuarioLogado?.id}
+                onClick={() => void onToggleStatus()}
+              >
+                {togglingStatus
+                  ? "Salvando..."
+                  : editing.isActive
+                    ? "Inativar"
+                    : "Ativar"}
+              </Button>
             </div>
           ) : null}
         </form>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../shared/auth/AuthContext";
 import {
+  podeBloquearProdutos,
   podeControlarValidade,
   podeDarEntradaEstoque,
   podeGerenciarProdutos,
@@ -16,7 +17,13 @@ import {
 } from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
 import { Button, IconButton } from "../../../shared/ui/Button";
-import { data as formatarData, diasAte, paraInputDate } from "../../../shared/ui/format";
+import {
+  classeCorValidade,
+  data as formatarData,
+  diasAte,
+  JANELA_VALIDADE_DIAS,
+  paraInputDate,
+} from "../../../shared/ui/format";
 import { Checkbox, Input, Textarea } from "../../../shared/ui/Input";
 import { Select } from "../../../shared/ui/Select";
 import { DateInput } from "../../../shared/ui/DateInput";
@@ -320,6 +327,7 @@ export function ProdutosPage() {
   const gerenciaProdutos = podeGerenciarProdutos(perfil);
   const daEntrada = podeDarEntradaEstoque(perfil);
   const controlaValidade = podeControlarValidade(perfil);
+  const bloqueiaProdutos = podeBloquearProdutos(perfil);
   const catalogoCompleto = usaCatalogoCompleto(perfil);
 
   const modo = modoDaRota(location.pathname);
@@ -354,9 +362,16 @@ export function ProdutosPage() {
       try {
         const lista =
           modo === "validades"
-            ? await service.listarValidades()
+            ? await service.listarValidades(JANELA_VALIDADE_DIAS)
             : await service.listarPorPerfil(catalogoCompleto, termo);
-        setRows(lista);
+        setRows(
+          modo === "validades"
+            ? lista.filter((produto) => {
+                const dias = diasAte(produto.validade);
+                return dias !== null && dias <= JANELA_VALIDADE_DIAS;
+              })
+            : lista,
+        );
       } catch (err) {
         toastErro(getErrorMessage(err));
         setRows([]);
@@ -424,14 +439,13 @@ export function ProdutosPage() {
     try {
       const confirmou = await pedirConfirmacao({
         titulo: "Excluir produto?",
-        texto: `O produto “${produto.nome}” será removido do catálogo. Esta ação não pode ser desfeita.`,
+        texto: `O produto “${produto.nome}” será removido do catálogo. Se ele já tiver sido usado em vendas, será apenas inativado.`,
         confirmar: "Excluir",
       });
       if (!confirmou) return;
-      await service.deletar(produto.id);
-      setRows((listaAtual) => listaAtual.filter((item) => item.id !== produto.id));
+      const resultado = await service.deletar(produto);
       setDetalhe((atual) => (atual && atual.id === produto.id ? null : atual));
-      toastSucesso("Produto removido.");
+      toastSucesso(resultado.message);
       await load(busca);
     } catch (err) {
       toastErro(getErrorMessage(err));
@@ -543,7 +557,7 @@ export function ProdutosPage() {
               <EmptyState
                 icone={<IconCalendar size={22} />}
                 titulo="Nada vencendo por enquanto"
-                descricao="Nenhum produto entra em validade crítica nos próximos 30 dias."
+                descricao="Nenhum produto vencido ou vencendo nos próximos 15 dias."
               />
             ) : (
               <EmptyState
@@ -611,19 +625,11 @@ export function ProdutosPage() {
               key: "validade",
               header: "Validade",
               largura: "6.75rem",
-              render: (produto) => {
-                const dias = diasAte(produto.validade);
-                const critico = dias !== null && dias <= 30;
-                return (
-                  <span
-                    className={`whitespace-nowrap tabular-nums ${
-                      critico ? "font-semibold text-brand-red" : "text-ink"
-                    }`}
-                  >
-                    {formatarData(produto.validade)}
-                  </span>
-                );
-              },
+              render: (produto) => (
+                <span className={`whitespace-nowrap tabular-nums ${classeCorValidade(produto.validade)}`}>
+                  {formatarData(produto.validade)}
+                </span>
+              ),
             },
             {
               key: "ativo",
@@ -645,7 +651,7 @@ export function ProdutosPage() {
               key: "acoes",
               header: "Ações",
               fim: true,
-              largura: "9.5rem",
+              largura: "11rem",
               render: (produto: ProdutoDTO) => (
                 <RowActions>
                   {gerenciaProdutos ? (
@@ -671,7 +677,7 @@ export function ProdutosPage() {
                       <IconCalendar size={17} />
                     </IconButton>
                   ) : null}
-                  {controlaValidade ? (
+                  {bloqueiaProdutos ? (
                     <IconButton
                       label={produto.isActive ? "Bloquear produto" : "Desbloquear produto"}
                       tone={produto.isActive ? "warning" : "success"}

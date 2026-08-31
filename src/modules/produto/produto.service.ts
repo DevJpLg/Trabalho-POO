@@ -287,14 +287,15 @@ export class ProdutoService implements InterfaceProdutoService {
 
 
     /* ! ========== Monitorar Validades ========== */
-    public async monitorarValidades(usuarioLogado: Usuario, dias: number = 30): Promise<Produto[] | Error> {
+    public async monitorarValidades(usuarioLogado: Usuario, dias: number = 15): Promise<Produto[] | Error> {
         try {
             if(!(await this.autorizacaoService.usuarioPodeGerenciarValidades(usuarioLogado))) {
                 return new Error("Usuário não autorizado");
             }
 
             const dataLimite = new Date();
-            dataLimite.setDate(dataLimite.getDate() + dias); //Seta o tempo limite para até 1 mês a partir do hoje
+            dataLimite.setDate(dataLimite.getDate() + dias);
+            dataLimite.setHours(23, 59, 59, 999);
 
             const resultado = await this.repository.listarProdutosPorValidade(dataLimite);
             if (resultado === null) {

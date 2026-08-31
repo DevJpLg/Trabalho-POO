@@ -42,6 +42,13 @@ export function getErrorMessage(error: unknown, fallback = "Ocorreu um erro ines
     if (error.status === 501) {
       return "Esta funcionalidade ainda não foi implementada no backend.";
     }
+    const mensagem = normalizar(error.message);
+    if (mensagem.includes("erro ao deletar produto")) {
+      return "Não foi possível excluir o produto. Se ele já foi vendido, tente bloqueá-lo.";
+    }
+    if (mensagem.includes("erro ao deletar usuario") || mensagem.includes("erro ao deletar usuário")) {
+      return "Não foi possível excluir o usuário. Tente inativá-lo pelo cadastro.";
+    }
     return error.message;
   }
 

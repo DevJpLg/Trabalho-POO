@@ -36,7 +36,7 @@ export class AutorizacaoService implements InterfaceAutorizacaoService {
     }
 
     public async usuarioPodeBloquearProdutos(usuarioLogado: Usuario): Promise<boolean> {
-        return usuarioLogado.getPerfil() === Perfil.FARMACEUTICO;
+        return usuarioLogado.getPerfil() === Perfil.FARMACEUTICO || usuarioLogado.getPerfil() === Perfil.GERENTE;
     }
 
     public async usuarioPodeAvaliarProdutos(usuarioLogado: Usuario): Promise<boolean> {

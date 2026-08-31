@@ -39,13 +39,27 @@ export function paraInputDate(valor: string | null | undefined): string {
   return String(valor).slice(0, 10);
 }
 
-/** Dias restantes até a data (negativo quando já venceu). */
+/** Janela de monitoramento: vencido ou a vencer em até este número de dias corridos. */
+export const JANELA_VALIDADE_DIAS = 15;
+
+/** Dias corridos até a data (negativo quando já venceu). Compara só o dia, sem horário. */
 export function diasAte(valor: string | null | undefined): number | null {
   if (!valor) return null;
-  const alvo = new Date(valor);
-  if (Number.isNaN(alvo.getTime())) return null;
+  const iso = String(valor).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
 
-  const hoje = new Date();
-  const umDia = 24 * 60 * 60 * 1000;
-  return Math.ceil((alvo.getTime() - hoje.getTime()) / umDia);
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  const alvo = Date.UTC(ano, mes - 1, dia);
+  const agora = new Date();
+  const hoje = Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  return Math.round((alvo - hoje) / (24 * 60 * 60 * 1000));
+}
+
+/** Vermelho se vencido, amarelo se vence em até 15 dias, verde se acima de 15. */
+export function classeCorValidade(valor: string | null | undefined): string {
+  const dias = diasAte(valor);
+  if (dias === null) return "text-ink-muted";
+  if (dias < 0) return "font-semibold text-brand-red";
+  if (dias <= JANELA_VALIDADE_DIAS) return "font-semibold text-amber-ink";
+  return "font-semibold text-brand-green";
 }

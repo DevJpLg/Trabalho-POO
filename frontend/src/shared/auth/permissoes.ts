@@ -23,8 +23,11 @@ export const PERFIS_GERENCIAM_PRODUTOS: Perfil[] = ["GERENTE"];
 /** `PATCH /api/produtos/:id/entrada` → exige GERENTE. */
 export const PERFIS_DAO_ENTRADA_ESTOQUE: Perfil[] = ["GERENTE"];
 
-/** `GET /api/produtos/validades`, `PATCH /:id/validade` e `PATCH /:id/bloquear|desbloquear` → FARMACEUTICO. */
+/** `GET /api/produtos/validades` e `PATCH /:id/validade` → FARMACEUTICO. */
 export const PERFIS_CONTROLAM_VALIDADE: Perfil[] = ["FARMACEUTICO"];
+
+/** `PATCH /api/produtos/:id/bloquear|desbloquear` → FARMACEUTICO ou GERENTE. */
+export const PERFIS_BLOQUEIAM_PRODUTOS: Perfil[] = ["FARMACEUTICO", "GERENTE"];
 
 /** `GET|POST|PATCH|DELETE /api/itens-venda/...` → exige ATENDENTE ou CAIXA. */
 export const PERFIS_GERENCIAM_ITENS: Perfil[] = ["ATENDENTE", "CAIXA"];
@@ -68,6 +71,10 @@ export function podeDarEntradaEstoque(perfil?: Perfil): boolean {
 
 export function podeControlarValidade(perfil?: Perfil): boolean {
   return temPerfil(perfil, PERFIS_CONTROLAM_VALIDADE);
+}
+
+export function podeBloquearProdutos(perfil?: Perfil): boolean {
+  return temPerfil(perfil, PERFIS_BLOQUEIAM_PRODUTOS);
 }
 
 export function podeGerenciarItens(perfil?: Perfil): boolean {

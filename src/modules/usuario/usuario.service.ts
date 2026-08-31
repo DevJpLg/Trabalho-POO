@@ -110,6 +110,10 @@ export default class UsuarioService implements InterfaceUsuarioService {
                 return new Error("Usuário não autorizado");
             }
 
+            if(usuarioLogado.getId() === id) {
+                return new Error("Não é possível excluir o próprio usuário");
+            }
+
             const usuarioExistente = await this.repository.buscarUsuarioPorId(id);
             if(!usuarioExistente || usuarioExistente === null) { 
                 return new Error("Usuario não encontrado"); 
@@ -120,7 +124,7 @@ export default class UsuarioService implements InterfaceUsuarioService {
                 return new Error("Erro ao deletar usuário");
             }
         } catch (error) {
-            return new Error("Erro ao deletar usuário");
+            return new Error(error instanceof Error ? error.message : "Erro ao deletar usuário");
         }
     }
 

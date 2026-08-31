@@ -16,7 +16,7 @@ export class validacaoItemService implements InterfaceValidacaoItemService {
         this.autorizacaoService = autorizacaoService;
     }
 
-    /* ! ========== Aprovar Item (separar depois_)========== */
+    /* ! ========== Aprovar Item ========== */
     public async aprovarItem(usuarioLogado: Usuario, vendaId: number, id: number): Promise<void | Error> {
         try {
             if(!(await this.autorizacaoService.usuarioPodeAvaliarItemVendas(usuarioLogado))) {
@@ -41,7 +41,7 @@ export class validacaoItemService implements InterfaceValidacaoItemService {
         }
     }
 
-    /* ! ========== Recusar Item (separar depois)========== */
+    /* ! ========== Recusar Item ========== */
     public async recusarItem(usuarioLogado: Usuario, vendaId: number, id: number): Promise<void | Error> {
         try {
             if(!(await this.autorizacaoService.usuarioPodeAvaliarItemVendas(usuarioLogado))) {

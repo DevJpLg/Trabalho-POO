@@ -1,4 +1,5 @@
 import { listarTolerante } from "../../shared/http/getErrorMessage";
+import { ApiError } from "../../shared/http/HttpClient";
 import type { MessageResponse, ProdutoDTO, ProdutoInput } from "../../shared/types/api";
 import { produtoParaInput } from "./produto.mapper";
 import type { InterfaceProdutoRepository } from "./produto.repository";
@@ -11,7 +12,7 @@ export interface InterfaceProdutoService {
   listarPorPerfil(catalogoCompleto: boolean, busca?: string): Promise<ProdutoDTO[]>;
   cadastrar(dados: ProdutoInput): Promise<MessageResponse>;
   editar(id: number, dados: ProdutoInput): Promise<MessageResponse>;
-  deletar(id: number): Promise<void>;
+  deletar(produto: ProdutoDTO): Promise<MessageResponse>;
   entrada(id: number, qtd: number): Promise<MessageResponse>;
   /**
    * `PATCH /produtos/:id/baixa` só autoriza ATENDENTE/CAIXA. O botão da tela de
@@ -131,8 +132,35 @@ export class ProdutoService implements InterfaceProdutoService {
     return this.repository.editar(id, payloadProduto(dados));
   }
 
-  deletar(id: number): Promise<void> {
-    return this.repository.deletar(id);
+  /**
+   * DELETE responde 204 e quebra se o produto já entrou em alguma venda (FK).
+   * Sem alterar o backend: se a exclusão falhar, inativamos via PUT (gerente
+   * pode editar; bloquear é só do farmacêutico). Se o DELETE tiver funcionado
+   * e o proxy só tiver perdido o 204, o PUT vem "não encontrado" — sucesso.
+   */
+  async deletar(produto: ProdutoDTO): Promise<MessageResponse> {
+    try {
+      await this.repository.deletar(produto.id);
+      return { message: "Produto removido." };
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) throw err;
+
+      try {
+        await this.repository.editar(
+          produto.id,
+          payloadProduto({ ...produtoParaInput(produto), isActive: false }),
+        );
+        return {
+          message:
+            "O produto não pôde ser excluído porque já foi usado em vendas. Ele foi inativado no catálogo.",
+        };
+      } catch (fallbackErr) {
+        if (fallbackErr instanceof ApiError && /n[aã]o encontrado/i.test(fallbackErr.message)) {
+          return { message: "Produto removido." };
+        }
+        throw err;
+      }
+    }
   }
 
   entrada(id: number, qtd: number): Promise<MessageResponse> {

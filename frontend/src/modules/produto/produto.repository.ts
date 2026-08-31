@@ -6,7 +6,7 @@ export interface InterfaceProdutoRepository {
   listar(busca?: string): Promise<ProdutoDTO[]>;
   /** `GET /produtos/busca` — vendáveis (ativo, com estoque, na validade). Qualquer autenticado. */
   buscarVendaveis(busca?: string): Promise<ProdutoDTO[]>;
-  /** `GET /produtos/validades` — vencendo até `dias` (padrão 30 no backend). Só FARMACEUTICO. */
+  /** `GET /produtos/validades` — vencidos ou vencendo até `dias` (padrão 15). Só FARMACEUTICO. */
   listarValidades(dias?: number): Promise<ProdutoDTO[]>;
   cadastrar(dados: ProdutoInput): Promise<MessageResponse>;
   editar(id: number, dados: ProdutoInput): Promise<MessageResponse>;
