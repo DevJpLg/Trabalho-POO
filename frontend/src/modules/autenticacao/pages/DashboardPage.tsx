@@ -1,28 +1,50 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../shared/auth/AuthContext";
-import { podeControlarValidade, usaCatalogoCompleto } from "../../../shared/auth/permissoes";
-import { classificacaoLabel, type Perfil, type ProdutoDTO, type VendaDTO } from "../../../shared/types/api";
-import { Card, CardHeader, SectionTitle } from "../../../shared/ui/Card";
+import {
+  podeControlarValidade,
+  podeGerenciarPrescricoes,
+  podeGerenciarUsuarios,
+  podeListarVendas,
+  usaCatalogoCompleto,
+} from "../../../shared/auth/permissoes";
+import {
+  PERFIS,
+  STATUS_VENDA,
+  classificacaoLabel,
+  perfilLabel,
+  statusVendaLabel,
+  type Classificacao,
+  type Perfil,
+  type PrescricaoDTO,
+  type ProdutoDTO,
+  type StatusVenda,
+  type UsuarioDTO,
+  type VendaDTO,
+} from "../../../shared/types/api";
+import { Badge } from "../../../shared/ui/Badge";
+import { Card, CardHeader } from "../../../shared/ui/Card";
 import { AreaChart, BarChart, DonutChart } from "../../../shared/ui/charts";
-import { data as formatarData, diasAte, moeda } from "../../../shared/ui/format";
+import { data as formatarData, dataHora, diasAte, moeda } from "../../../shared/ui/format";
 import { Skeleton } from "../../../shared/ui/PageHeader";
 import {
   IconAlert,
-  IconArrowRight,
   IconCart,
   IconClipboard,
   IconFileMedical,
   IconPills,
   IconShield,
-  IconTrend,
   IconUsers,
 } from "../../../shared/ui/icons";
 import type { IconeNav } from "../../../shared/ui/nav";
 import { StatCard } from "../../../shared/ui/StatCard";
 import { usePageTitle } from "../../../shared/ui/usePageTitle";
+import { PrescricaoRepository } from "../../prescricao/prescricao.repository";
+import { PrescricaoService } from "../../prescricao/prescricao.service";
 import { ProdutoRepository } from "../../produto/produto.repository";
 import { ProdutoService } from "../../produto/produto.service";
+import { UsuarioRepository } from "../../usuario/usuario.repository";
+import { UsuarioService } from "../../usuario/usuario.service";
 import { VendaRepository } from "../../venda/venda.repository";
 import { VendaService } from "../../venda/venda.service";
 
@@ -43,6 +65,27 @@ const atalhosPorPerfil: Record<Perfil, { to: string; label: string; icone: Icone
   ],
 };
 
+const coresStatus: Record<StatusVenda, string> = {
+  EM_ANDAMENTO: "var(--color-brand-green)",
+  EM_AVALIACAO: "var(--color-amber-ink)",
+  AGUARDANDO_PAGAMENTO: "var(--color-chart-secondary)",
+  FINALIZADA: "var(--color-ink-muted)",
+  CANCELADA: "var(--color-brand-red)",
+};
+
+const coresPerfil: Record<Perfil, string> = {
+  GERENTE: "var(--color-brand-red)",
+  FARMACEUTICO: "var(--color-amber-ink)",
+  ATENDENTE: "var(--color-brand-green)",
+  CAIXA: "var(--color-ink-muted)",
+};
+
+const coresClassificacao: Record<Classificacao, string> = {
+  LIVRE: "var(--color-brand-green)",
+  PRESCRITO: "var(--color-amber-ink)",
+  CONTROLADO: "var(--color-brand-red)",
+};
+
 const saudacao = () => {
   const hora = new Date().getHours();
   if (hora < 12) return "Bom dia";
@@ -50,19 +93,162 @@ const saudacao = () => {
   return "Boa noite";
 };
 
+function statusTone(status: StatusVenda) {
+  if (status === "EM_AVALIACAO") return "amber" as const;
+  if (status === "CANCELADA") return "red" as const;
+  if (status === "FINALIZADA") return "neutral" as const;
+  return "green" as const;
+}
+
+function tonePerfil(perfil: Perfil) {
+  if (perfil === "GERENTE") return "red" as const;
+  if (perfil === "FARMACEUTICO") return "amber" as const;
+  if (perfil === "ATENDENTE") return "green" as const;
+  return "neutral" as const;
+}
+
+function toneClassificacao(classificacao: Classificacao) {
+  if (classificacao === "LIVRE") return "green" as const;
+  if (classificacao === "CONTROLADO") return "red" as const;
+  return "amber" as const;
+}
+
+function nomeCurto(nome: string, palavras = 2) {
+  const partes = nome.trim().split(/\s+/);
+  return partes.slice(0, palavras).join(" ") || nome;
+}
+
+function porStatus(vendas: VendaDTO[], status: StatusVenda) {
+  return vendas.filter((venda) => venda.status === status);
+}
+
+function ordenarVendas(vendas: VendaDTO[], maisRecente = true) {
+  return [...vendas].sort((a, b) => {
+    const delta = new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime();
+    return maisRecente ? -delta : delta;
+  });
+}
+
+function fatiasStatus(vendas: VendaDTO[]) {
+  return STATUS_VENDA.map((status) => ({
+    label: statusVendaLabel[status],
+    value: porStatus(vendas, status).length,
+    color: coresStatus[status],
+  }));
+}
+
+function fatiasClassificacao(produtos: ProdutoDTO[]) {
+  return (["LIVRE", "PRESCRITO", "CONTROLADO"] as const).map((classificacao) => ({
+    label: classificacaoLabel[classificacao],
+    value: produtos.filter((produto) => produto.classificacao === classificacao).length,
+    color: coresClassificacao[classificacao],
+  }));
+}
+
+function rotuloValidade(dias: number | null) {
+  if (dias === null) return "sem data";
+  if (dias < 0) return "vencido";
+  if (dias === 0) return "vence hoje";
+  return `${dias} dias`;
+}
+
+function toneValidade(dias: number | null) {
+  if (dias === null) return "neutral" as const;
+  if (dias < 7) return "red" as const;
+  if (dias <= 15) return "amber" as const;
+  return "green" as const;
+}
+
+function LinkVerTodos({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="rounded-full bg-surface-muted px-4 py-2 text-sm font-semibold text-ink transition hover:bg-brand-green hover:text-white"
+    >
+      {children}
+    </Link>
+  );
+}
+
+type ColunaMini<T> = {
+  key: string;
+  header: string;
+  render: (row: T) => ReactNode;
+  fim?: boolean;
+};
+
+function MiniTable<T>({
+  columns,
+  rows,
+  rowKey,
+  vazio,
+}: {
+  columns: ColunaMini<T>[];
+  rows: T[];
+  rowKey: (row: T) => string | number;
+  vazio: string;
+}) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-ink-muted">{vazio}</p>;
+  }
+
+  return (
+    <div className="min-w-0 overflow-x-auto">
+      <table className="w-full text-left text-[13px]">
+        <thead>
+          <tr className="border-b border-line text-[11px] uppercase tracking-wide text-ink-muted">
+            {columns.map((coluna) => (
+              <th
+                key={coluna.key}
+                className={`whitespace-nowrap py-2 font-semibold ${coluna.fim ? "text-right" : ""}`}
+              >
+                {coluna.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)} className="border-b border-line/50 last:border-0">
+              {columns.map((coluna) => (
+                <td
+                  key={coluna.key}
+                  className={`py-2.5 align-middle ${coluna.fim ? "text-right" : "pr-3"}`}
+                >
+                  {coluna.render(row)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   usePageTitle("Visão geral");
   const { http, usuario } = useAuth();
   const perfil = usuario?.perfil;
   const catalogoCompleto = usaCatalogoCompleto(perfil);
   const acompanhaValidade = podeControlarValidade(perfil);
+  const carregaVendas = podeListarVendas(perfil);
+  const carregaPrescricoes = podeGerenciarPrescricoes(perfil);
+  const carregaUsuarios = podeGerenciarUsuarios(perfil);
 
   const produtos = useMemo(() => new ProdutoService(new ProdutoRepository(http)), [http]);
   const vendasApi = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
+  const prescricoesApi = useMemo(
+    () => new PrescricaoService(new PrescricaoRepository(http)),
+    [http],
+  );
+  const usuariosApi = useMemo(() => new UsuarioService(new UsuarioRepository(http)), [http]);
 
   const [items, setItems] = useState<ProdutoDTO[]>([]);
   const [vendas, setVendas] = useState<VendaDTO[]>([]);
   const [vencendo, setVencendo] = useState<ProdutoDTO[]>([]);
+  const [prescricoes, setPrescricoes] = useState<PrescricaoDTO[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioDTO[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -70,75 +256,51 @@ export function DashboardPage() {
 
     Promise.allSettled([
       produtos.listarPorPerfil(catalogoCompleto, ""),
-      vendasApi.listar(),
+      carregaVendas ? vendasApi.listar() : Promise.resolve<VendaDTO[]>([]),
       acompanhaValidade ? produtos.listarValidades() : Promise.resolve<ProdutoDTO[]>([]),
-    ]).then(([resProdutos, resVendas, resValidades]) => {
+      carregaPrescricoes ? prescricoesApi.listar() : Promise.resolve<PrescricaoDTO[]>([]),
+      carregaUsuarios ? usuariosApi.listar() : Promise.resolve<UsuarioDTO[]>([]),
+    ]).then(([resProdutos, resVendas, resValidades, resPrescricoes, resUsuarios]) => {
       if (!ativo) return;
       if (resProdutos.status === "fulfilled") setItems(resProdutos.value);
       if (resVendas.status === "fulfilled") setVendas(resVendas.value);
       if (resValidades.status === "fulfilled") setVencendo(resValidades.value);
+      if (resPrescricoes.status === "fulfilled") setPrescricoes(resPrescricoes.value);
+      if (resUsuarios.status === "fulfilled") setUsuarios(resUsuarios.value);
       setCarregando(false);
     });
 
     return () => {
       ativo = false;
     };
-  }, [produtos, vendasApi, catalogoCompleto, acompanhaValidade]);
+  }, [
+    produtos,
+    vendasApi,
+    prescricoesApi,
+    usuariosApi,
+    catalogoCompleto,
+    acompanhaValidade,
+    carregaVendas,
+    carregaPrescricoes,
+    carregaUsuarios,
+  ]);
 
   const ativos = items.filter((produto) => produto.isActive);
   const bloqueados = items.filter((produto) => !produto.isActive);
-  const porStatus = (status: VendaDTO["status"]) =>
-    vendas.filter((venda) => venda.status === status);
-  const valorEstoque = items.reduce(
-    (soma, produto) => soma + Number(produto.preco) * produto.quantidadeEstoque,
-    0,
-  );
-
-  const topEstoque = [...items]
-    .sort((a, b) => b.quantidadeEstoque - a.quantidadeEstoque)
-    .slice(0, 7)
-    .map((produto) => ({
-      label: produto.nome.split(" ")[0] ?? produto.nome,
-      value: produto.quantidadeEstoque,
-    }));
-
-  const classes = (["LIVRE", "PRESCRITO", "CONTROLADO"] as const).map((classificacao) => ({
-    label: classificacaoLabel[classificacao],
-    value: items.filter((produto) => produto.classificacao === classificacao).length,
-  }));
-
-  const estoqueCritico = [...items]
-    .sort((a, b) => a.quantidadeEstoque - b.quantidadeEstoque)
-    .slice(0, 4);
-
-  const maisCaros = [...items]
-    .filter((produto) => produto.isActive)
-    .sort((a, b) => Number(b.preco) - Number(a.preco))
-    .slice(0, 6);
-
-  const pontosPreco =
-    maisCaros.length > 0 ? maisCaros.map((produto) => Number(produto.preco) || 0) : [12, 28, 22, 40, 32, 48];
-  const rotulosPreco = maisCaros.map((produto) => {
-    const partes = produto.nome.trim().split(/\s+/);
-    return partes.slice(0, 2).join(" ") || produto.nome;
-  });
 
   if (carregando) {
     return (
       <div className="min-w-0 space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, indice) => (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, indice) => (
             <Skeleton key={indice} className="h-[84px] rounded-[25px]" />
           ))}
         </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-          <Skeleton className="h-[168px] rounded-[25px]" />
-          <Skeleton className="h-[168px] rounded-[25px]" />
+          <Skeleton className="h-[280px] rounded-[25px]" />
+          <Skeleton className="h-[280px] rounded-[25px]" />
         </div>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-          <Skeleton className="h-[300px] rounded-[25px]" />
-          <Skeleton className="h-[300px] rounded-[25px]" />
-        </div>
+        <Skeleton className="h-[240px] rounded-[25px]" />
       </div>
     );
   }
@@ -204,8 +366,8 @@ export function DashboardPage() {
           label={perfil === "CAIXA" ? "Aguardando pagamento" : "Vendas em aberto"}
           value={
             perfil === "CAIXA"
-              ? porStatus("AGUARDANDO_PAGAMENTO").length
-              : porStatus("EM_ANDAMENTO").length
+              ? porStatus(vendas, "AGUARDANDO_PAGAMENTO").length
+              : porStatus(vendas, "EM_ANDAMENTO").length
           }
           apoio={`${vendas.length} vendas no total`}
           icon={<IconCart />}
@@ -219,7 +381,7 @@ export function DashboardPage() {
 
         <StatCard
           label="Vendas em avaliação"
-          value={porStatus("EM_AVALIACAO").length}
+          value={porStatus(vendas, "EM_AVALIACAO").length}
           apoio="controlados e prescritos"
           icon={<IconClipboard />}
           tone="red"
@@ -227,241 +389,799 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" style={{ display: "none" }}>
-        <StatCard
-          label={catalogoCompleto ? "Produtos ativos" : "Produtos disponíveis"}
-          value={ativos.length}
-          apoio={catalogoCompleto ? `de ${items.length} cadastrados` : "no catálogo vendável"}
-          icon={<IconPills />}
-          tone="green"
-          to="/produtos"
+      {perfil === "ATENDENTE" ? (
+        <PainelAtendente vendas={vendas} produtos={items} prescricoes={prescricoes} />
+      ) : null}
+      {perfil === "CAIXA" ? <PainelCaixa vendas={vendas} produtos={items} /> : null}
+      {perfil === "FARMACEUTICO" ? (
+        <PainelFarmaceutico
+          vendas={vendas}
+          produtos={items}
+          vencendo={vencendo}
+          prescricoes={prescricoes}
         />
+      ) : null}
+      {perfil === "GERENTE" ? <PainelGerente produtos={items} usuarios={usuarios} /> : null}
+    </div>
+  );
+}
 
-        {acompanhaValidade ? (
-          <StatCard
-            label="Vencendo em 30 dias"
-            value={vencendo.length}
-            apoio={vencendo.length > 0 ? "precisa de atenção" : "nada urgente"}
-            icon={<IconAlert />}
-            tone="rose"
-            to="/produtos/validades"
-          />
-        ) : (
-          <StatCard
-            label="Produtos bloqueados"
-            value={bloqueados.length}
-            apoio={bloqueados.length > 0 ? "fora de circulação" : "nenhum bloqueio"}
-            icon={<IconShield />}
-            tone="rose"
-            to="/produtos"
-          />
-        )}
+function PainelAtendente({
+  vendas,
+  produtos,
+  prescricoes,
+}: {
+  vendas: VendaDTO[];
+  produtos: ProdutoDTO[];
+  prescricoes: PrescricaoDTO[];
+}) {
+  const fatiasVenda = fatiasStatus(vendas);
+  const fatiasTarja = fatiasClassificacao(produtos);
+  const fila = ordenarVendas(
+    vendas.filter((venda) => venda.status === "EM_ANDAMENTO" || venda.status === "EM_AVALIACAO"),
+  ).slice(0, 8);
+  const recentesPrescricoes = [...prescricoes]
+    .sort((a, b) => new Date(b.dataEmissao).getTime() - new Date(a.dataEmissao).getTime())
+    .slice(0, 8);
+  const prescritos = produtos.filter(
+    (produto) => produto.classificacao === "PRESCRITO" || produto.classificacao === "CONTROLADO",
+  ).length;
 
-        <StatCard
-          label={perfil === "CAIXA" ? "Aguardando pagamento" : "Vendas em aberto"}
-          value={
-            perfil === "CAIXA"
-              ? porStatus("AGUARDANDO_PAGAMENTO").length
-              : porStatus("EM_ANDAMENTO").length
-          }
-          apoio={`${vendas.length} vendas no total`}
-          icon={<IconCart />}
-          tone="mint"
-          to={
-            perfil === "CAIXA"
-              ? "/vendas?status=AGUARDANDO_PAGAMENTO"
-              : "/vendas?status=EM_ANDAMENTO"
-          }
-        />
-
-        <StatCard
-          label="Vendas em avaliação"
-          value={porStatus("EM_AVALIACAO").length}
-          apoio="controlados e prescritos"
-          icon={<IconClipboard />}
-          tone="red"
-          to="/vendas?status=EM_AVALIACAO"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <div className="min-w-0">
-          <SectionTitle>Painel de estoque</SectionTitle>
-          <div className="grid gap-4 sm:grid-cols-1">
-            <article className="rounded-[25px] bg-surface p-6 shadow-card ring-1 ring-line/60">
-              <p className="text-sm text-ink-muted">
-                {catalogoCompleto ? "Itens cadastrados" : "Itens no catálogo"}
-              </p>
-              <p className="mt-4 text-[30px] font-bold leading-none tracking-tight text-ink">
-                {items.length}
-              </p>
-              <div className="mt-6 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                <div
-                  className="h-full rounded-full bg-brand-green transition-all duration-700"
-                  style={{
-                    width: `${items.length ? (ativos.length / items.length) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-              <p className="mt-2 text-sm font-medium text-brand-green">
-                {ativos.length} disponíveis para operação
-              </p>
-            </article>
-          </div>
-        </div>
-
-        <Card>
-          <CardHeader titulo="Estoque crítico" descricao="Os quatro itens com menos unidades." />
-          <ul className="space-y-3">
-            {estoqueCritico.length === 0 ? (
-              <li className="text-sm text-ink-muted">Nenhum produto carregado.</li>
-            ) : (
-              estoqueCritico.map((produto) => (
-                <li
-                  key={produto.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-surface-hover"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${
-                        produto.quantidadeEstoque <= 5
-                          ? "bg-brand-red-soft text-brand-red"
-                          : "bg-brand-green-soft text-brand-green"
-                      }`}
-                    >
-                      <IconPills size={17} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-ink">{produto.nome}</p>
-                      <p className="truncate text-xs text-ink-muted">
-                        vence {formatarData(produto.validade)}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={`shrink-0 text-sm font-bold ${
-                      produto.quantidadeEstoque <= 5 ? "text-brand-red" : "text-brand-green"
-                    }`}
-                  >
-                    {produto.quantidadeEstoque} un.
-                  </span>
-                </li>
-              ))
-            )}
-          </ul>
-        </Card>
-      </div>
-
+  return (
+    <>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader
+            titulo="Vendas por status"
+            descricao="Fila do atendimento: abertas, em avaliação e as demais."
+            acao={<LinkVerTodos to="/vendas">Ver vendas</LinkVerTodos>}
+          />
+          {fatiasVenda.some((fatia) => fatia.value > 0) ? (
+            <DonutChart slices={fatiasVenda} total="vendas" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhuma venda registrada ainda.</p>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Tarja no catálogo"
+            descricao="Só o atendente inclui prescritos e controlados na venda."
+          />
+          {fatiasTarja.some((fatia) => fatia.value > 0) ? (
+            <DonutChart slices={fatiasTarja} total="itens" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum produto disponível no catálogo.</p>
+          )}
+          <p className="mt-4 text-sm text-ink-muted">
+            <strong className="font-semibold text-ink">{prescritos}</strong> itens exigem receita.
+          </p>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader
+            titulo="Vendas em andamento"
+            descricao="Abertas no balcão ou aguardando o farmacêutico."
+            acao={<LinkVerTodos to="/vendas?status=EM_ANDAMENTO">Ver todas</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={fila}
+            rowKey={(venda) => venda.id ?? venda.dataHora}
+            vazio="Nenhuma venda aberta ou em avaliação."
+            columns={[
+              {
+                key: "id",
+                header: "Venda",
+                render: (venda) =>
+                  venda.id != null && venda.status === "EM_ANDAMENTO" ? (
+                    <Link
+                      to={`/registrar-venda?venda=${venda.id}`}
+                      className="font-semibold text-brand-green underline decoration-brand-green/40 underline-offset-2"
+                    >
+                      #{venda.id}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-ink">#{venda.id ?? "—"}</span>
+                  ),
+              },
+              {
+                key: "data",
+                header: "Quando",
+                render: (venda) => (
+                  <span className="text-ink-muted">{dataHora(venda.dataHora)}</span>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                fim: true,
+                render: (venda) => (
+                  <Badge dot tone={statusTone(venda.status)}>
+                    {statusVendaLabel[venda.status]}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Prescrições"
+            descricao="Receitas vinculadas às vendas do atendimento."
+            acao={<LinkVerTodos to="/prescricoes">Ver todas</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={recentesPrescricoes}
+            rowKey={(prescricao) => prescricao.id}
+            vazio="Nenhuma prescrição cadastrada."
+            columns={[
+              {
+                key: "paciente",
+                header: "Paciente",
+                render: (prescricao) => (
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-ink">{prescricao.nomePaciente}</p>
+                    <p className="truncate text-[11px] text-ink-muted">
+                      {prescricao.numeroPrescricao} · venda #{prescricao.vendaId}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                key: "validade",
+                header: "Validade",
+                fim: true,
+                render: (prescricao) => {
+                  const dias = diasAte(prescricao.dataValidade);
+                  return (
+                    <Badge tone={toneValidade(dias)}>
+                      {rotuloValidade(dias)}
+                    </Badge>
+                  );
+                },
+              },
+            ]}
+          />
+        </Card>
+      </div>
+    </>
+  );
+}
+
+function PainelCaixa({ vendas, produtos }: { vendas: VendaDTO[]; produtos: ProdutoDTO[] }) {
+  const livres = produtos.filter((produto) => produto.classificacao === "LIVRE");
+  const fatiasVenda = fatiasStatus(vendas);
+  const filaPagamento = ordenarVendas(porStatus(vendas, "AGUARDANDO_PAGAMENTO"), false).slice(0, 8);
+  const abertas = porStatus(vendas, "EM_ANDAMENTO").length;
+  const topLivres = [...livres]
+    .sort((a, b) => b.quantidadeEstoque - a.quantidadeEstoque)
+    .slice(0, 7)
+    .map((produto) => ({
+      label: nomeCurto(produto.nome, 1),
+      value: produto.quantidadeEstoque,
+    }));
+  const livresBaixo = [...livres]
+    .sort((a, b) => a.quantidadeEstoque - b.quantidadeEstoque)
+    .slice(0, 6);
+
+  return (
+    <>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader
+            titulo="Fila do caixa"
+            descricao="O que está aberto e o que já pode receber pagamento."
+            acao={<LinkVerTodos to="/vendas">Ver vendas</LinkVerTodos>}
+          />
+          {fatiasVenda.some((fatia) => fatia.value > 0) ? (
+            <DonutChart slices={fatiasVenda} total="vendas" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhuma venda na fila do caixa.</p>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Produtos livres"
+            descricao="Itens simples que o caixa pode incluir na venda."
+          />
+          {topLivres.length > 0 ? (
+            <BarChart bars={topLivres} />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum produto livre disponível.</p>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader
+            titulo="Aguardando pagamento"
+            descricao="Vendas prontas para o caixa receber — as mais antigas primeiro."
+            acao={
+              <LinkVerTodos to="/vendas?status=AGUARDANDO_PAGAMENTO">Ver fila</LinkVerTodos>
+            }
+          />
+          <MiniTable
+            rows={filaPagamento}
+            rowKey={(venda) => venda.id ?? venda.dataHora}
+            vazio="Nenhuma venda aguardando pagamento."
+            columns={[
+              {
+                key: "id",
+                header: "Venda",
+                render: (venda) =>
+                  venda.id != null ? (
+                    <Link
+                      to={`/registrar-venda?venda=${venda.id}`}
+                      className="font-semibold text-brand-green underline decoration-brand-green/40 underline-offset-2"
+                    >
+                      #{venda.id}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-ink">#—</span>
+                  ),
+              },
+              {
+                key: "data",
+                header: "Desde",
+                render: (venda) => (
+                  <span className="text-ink-muted">{dataHora(venda.dataHora)}</span>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                fim: true,
+                render: () => (
+                  <Badge dot tone="green">
+                    {statusVendaLabel.AGUARDANDO_PAGAMENTO}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+          {abertas > 0 ? (
+            <p className="mt-4 text-sm text-ink-muted">
+              {abertas} venda{abertas === 1 ? "" : "s"} ainda em aberto no balcão.
+            </p>
+          ) : null}
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Estoque simples"
+            descricao="Produtos livres com menos unidades — úteis na hora de montar a venda."
+            acao={<LinkVerTodos to="/produtos">Ver catálogo</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={livresBaixo}
+            rowKey={(produto) => produto.id}
+            vazio="Nenhum produto livre no catálogo."
+            columns={[
+              {
+                key: "nome",
+                header: "Produto",
+                render: (produto) => (
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-ink">{produto.nome}</p>
+                    <p className="truncate text-[11px] text-ink-muted">{produto.categoria}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "estoque",
+                header: "Unidades",
+                fim: true,
+                render: (produto) => (
+                  <span
+                    className={`font-bold ${
+                      produto.quantidadeEstoque <= 5 ? "text-brand-red" : "text-brand-green"
+                    }`}
+                  >
+                    {produto.quantidadeEstoque}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </div>
+    </>
+  );
+}
+
+function PainelFarmaceutico({
+  vendas,
+  produtos,
+  vencendo,
+  prescricoes,
+}: {
+  vendas: VendaDTO[];
+  produtos: ProdutoDTO[];
+  vencendo: ProdutoDTO[];
+  prescricoes: PrescricaoDTO[];
+}) {
+  const faixas = [
+    { label: "Vencidos", min: -Infinity, max: -1 },
+    { label: "Até 7 dias", min: 0, max: 7 },
+    { label: "8 a 15", min: 8, max: 15 },
+    { label: "16 a 30", min: 16, max: 30 },
+    { label: "Acima de 30", min: 31, max: Infinity },
+  ].map((faixa) => ({
+    label: faixa.label,
+    value: produtos.filter((produto) => {
+      const dias = diasAte(produto.validade);
+      if (dias === null) return false;
+      return dias >= faixa.min && dias <= faixa.max;
+    }).length,
+  }));
+
+  const fatiasAvaliacao = [
+    {
+      label: "Em avaliação",
+      value: porStatus(vendas, "EM_AVALIACAO").length,
+      color: coresStatus.EM_AVALIACAO,
+    },
+    {
+      label: "Avaliadas",
+      value: vendas.filter(
+        (venda) => venda.idFarmaceutico != null && venda.status !== "EM_AVALIACAO",
+      ).length,
+      color: coresStatus.FINALIZADA,
+    },
+    {
+      label: "Demais",
+      value: vendas.filter((venda) => venda.idFarmaceutico == null && venda.status !== "EM_AVALIACAO")
+        .length,
+      color: coresStatus.EM_ANDAMENTO,
+    },
+  ];
+
+  const urgentes = [...(vencendo.length ? vencendo : produtos)]
+    .map((produto) => ({ produto, dias: diasAte(produto.validade) }))
+    .filter((item) => item.dias !== null && item.dias <= 30)
+    .sort((a, b) => (a.dias ?? 0) - (b.dias ?? 0))
+    .slice(0, 8);
+
+  const pendentes = ordenarVendas(porStatus(vendas, "EM_AVALIACAO")).slice(0, 8);
+  const historico = ordenarVendas(
+    vendas.filter((venda) => venda.idFarmaceutico != null && venda.status !== "EM_AVALIACAO"),
+  ).slice(0, 8);
+  const receitasUrgentes = [...prescricoes]
+    .map((prescricao) => ({ prescricao, dias: diasAte(prescricao.dataValidade) }))
+    .sort((a, b) => (a.dias ?? 99) - (b.dias ?? 99))
+    .slice(0, 8);
+
+  return (
+    <>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader
+            titulo="Validade do estoque"
+            descricao="O que já venceu e o que está perto de vencer — prioridade do farmacêutico."
+            acao={<LinkVerTodos to="/produtos/validades">Ver validades</LinkVerTodos>}
+          />
+          {faixas.some((faixa) => faixa.value > 0) ? (
+            <BarChart bars={faixas} accent="red" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum produto com data de validade carregado.</p>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Fila de avaliação"
+            descricao="Vendas com prescritos ou controlados que precisam do seu aval."
+            acao={<LinkVerTodos to="/avaliacoes">Avaliar</LinkVerTodos>}
+          />
+          {fatiasAvaliacao.some((fatia) => fatia.value > 0) ? (
+            <DonutChart slices={fatiasAvaliacao} total="vendas" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhuma venda para acompanhar.</p>
+          )}
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader
+          titulo="Vencendo em breve"
+          descricao="Produtos que saem da validade nos próximos 30 dias, dos mais urgentes aos demais."
+          acao={<LinkVerTodos to="/produtos/validades">Ver todos</LinkVerTodos>}
+        />
+        <MiniTable
+          rows={urgentes}
+          rowKey={(item) => item.produto.id}
+          vazio="Nenhum produto vencendo nos próximos 30 dias."
+          columns={[
+            {
+              key: "nome",
+              header: "Produto",
+              render: (item) => (
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink">{item.produto.nome}</p>
+                  <p className="truncate text-[11px] text-ink-muted">
+                    lote {item.produto.lote || "—"} · {item.produto.quantidadeEstoque} un.
+                  </p>
+                </div>
+              ),
+            },
+            {
+              key: "data",
+              header: "Validade",
+              render: (item) => (
+                <span className="text-ink-muted">{formatarData(item.produto.validade)}</span>
+              ),
+            },
+            {
+              key: "prazo",
+              header: "Prazo",
+              fim: true,
+              render: (item) => (
+                <Badge tone={toneValidade(item.dias)}>{rotuloValidade(item.dias)}</Badge>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader
+            titulo="Vendas para avaliar"
+            descricao="Itens prescritos ou controlados aguardando decisão."
+            acao={<LinkVerTodos to="/avaliacoes">Abrir avaliações</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={pendentes}
+            rowKey={(venda) => venda.id ?? venda.dataHora}
+            vazio="Nenhuma venda em avaliação."
+            columns={[
+              {
+                key: "id",
+                header: "Venda",
+                render: (venda) =>
+                  venda.id != null ? (
+                    <Link
+                      to={`/avaliacoes?venda=${venda.id}`}
+                      className="font-semibold text-brand-green underline decoration-brand-green/40 underline-offset-2"
+                    >
+                      #{venda.id}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-ink">#—</span>
+                  ),
+              },
+              {
+                key: "data",
+                header: "Quando",
+                render: (venda) => (
+                  <span className="text-ink-muted">{dataHora(venda.dataHora)}</span>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                fim: true,
+                render: () => (
+                  <Badge dot tone="amber">
+                    {statusVendaLabel.EM_AVALIACAO}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Histórico avaliado"
+            descricao="Vendas que já passaram pela sua avaliação."
+            acao={<LinkVerTodos to="/vendas">Ver vendas</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={historico}
+            rowKey={(venda) => venda.id ?? venda.dataHora}
+            vazio="Ainda não há vendas avaliadas."
+            columns={[
+              {
+                key: "id",
+                header: "Venda",
+                render: (venda) => (
+                  <span className="font-semibold text-ink">#{venda.id ?? "—"}</span>
+                ),
+              },
+              {
+                key: "data",
+                header: "Quando",
+                render: (venda) => (
+                  <span className="text-ink-muted">{dataHora(venda.dataHora)}</span>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                fim: true,
+                render: (venda) => (
+                  <Badge dot tone={statusTone(venda.status)}>
+                    {statusVendaLabel[venda.status]}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader
+          titulo="Prescrições sob vigilância"
+          descricao="Receitas pela data de validade — as que vencem primeiro aparecem no topo."
+          acao={<LinkVerTodos to="/prescricoes">Ver prescrições</LinkVerTodos>}
+        />
+        <MiniTable
+          rows={receitasUrgentes}
+          rowKey={(item) => item.prescricao.id}
+          vazio="Nenhuma prescrição cadastrada."
+          columns={[
+            {
+              key: "paciente",
+              header: "Paciente",
+              render: (item) => (
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink">{item.prescricao.nomePaciente}</p>
+                  <p className="truncate text-[11px] text-ink-muted">
+                    {item.prescricao.numeroPrescricao} · Dr(a). {item.prescricao.nomeMedico}
+                  </p>
+                </div>
+              ),
+            },
+            {
+              key: "venda",
+              header: "Venda",
+              render: (item) => (
+                <span className="text-ink-muted">#{item.prescricao.vendaId}</span>
+              ),
+            },
+            {
+              key: "retida",
+              header: "Retenção",
+              render: (item) => (
+                <Badge tone={item.prescricao.retida ? "green" : "amber"}>
+                  {item.prescricao.retida ? "Retida" : "Pendente"}
+                </Badge>
+              ),
+            },
+            {
+              key: "prazo",
+              header: "Validade",
+              fim: true,
+              render: (item) => (
+                <Badge tone={toneValidade(item.dias)}>{rotuloValidade(item.dias)}</Badge>
+              ),
+            },
+          ]}
+        />
+      </Card>
+    </>
+  );
+}
+
+function PainelGerente({
+  produtos,
+  usuarios,
+}: {
+  produtos: ProdutoDTO[];
+  usuarios: UsuarioDTO[];
+}) {
+  const ativos = produtos.filter((produto) => produto.isActive);
+  const semEstoque = produtos
+    .filter((produto) => produto.isActive && produto.quantidadeEstoque <= 0)
+    .slice(0, 8);
+  const estoqueCritico = [...produtos]
+    .filter((produto) => produto.isActive)
+    .sort((a, b) => a.quantidadeEstoque - b.quantidadeEstoque)
+    .slice(0, 6);
+  const topEstoque = [...produtos]
+    .sort((a, b) => b.quantidadeEstoque - a.quantidadeEstoque)
+    .slice(0, 7)
+    .map((produto) => ({
+      label: nomeCurto(produto.nome, 1),
+      value: produto.quantidadeEstoque,
+    }));
+  const fatiasEquipe = PERFIS.map((perfil) => ({
+    label: perfilLabel[perfil],
+    value: usuarios.filter((membro) => membro.perfil === perfil).length,
+    color: coresPerfil[perfil],
+  }));
+  const fatiasTarja = fatiasClassificacao(produtos);
+  const inativos = usuarios.filter((membro) => !membro.isActive);
+  const valorEstoque = produtos.reduce(
+    (soma, produto) => soma + Number(produto.preco) * produto.quantidadeEstoque,
+    0,
+  );
+  const equipe = [...usuarios].sort((a, b) => Number(b.isActive) - Number(a.isActive)).slice(0, 8);
+
+  const pontosEstoque =
+    estoqueCritico.length > 0
+      ? [...estoqueCritico]
+          .reverse()
+          .map((produto) => produto.quantidadeEstoque)
+      : [0];
+  const rotulosEstoque = [...estoqueCritico].reverse().map((produto) => nomeCurto(produto.nome, 1));
+
+  return (
+    <>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader
+            titulo="Equipe cadastrada"
+            descricao="Distribuição dos usuários por perfil de acesso."
+            acao={<LinkVerTodos to="/usuarios">Gerenciar</LinkVerTodos>}
+          />
+          {fatiasEquipe.some((fatia) => fatia.value > 0) ? (
+            <DonutChart slices={fatiasEquipe} total="usuários" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum usuário carregado.</p>
+          )}
+          {inativos.length > 0 ? (
+            <p className="mt-4 text-sm text-ink-muted">
+              <strong className="font-semibold text-ink">{inativos.length}</strong>{" "}
+              {inativos.length === 1 ? "acesso inativo" : "acessos inativos"} — convém revisar o cadastro.
+            </p>
+          ) : null}
+        </Card>
+
+        <Card>
+          <CardHeader
             titulo="Estoque por produto"
-            descricao="Os sete itens com maior quantidade."
+            descricao="Os sete itens com maior quantidade em casa."
             acao={
               <span className="flex items-center gap-2 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-medium text-ink-muted">
                 <span className="size-2 rounded-full bg-brand-green" /> unidades
               </span>
             }
           />
-          <BarChart
-            bars={
-              topEstoque.length
-                ? topEstoque
-                : ["—", "—", "—", "—", "—", "—", "—"].map((label) => ({ label, value: 0 }))
-            }
-          />
-        </Card>
-
-        <Card>
-          <CardHeader titulo="Classificação" descricao="Distribuição do catálogo por tarja." />
-          <DonutChart slices={classes} total="produtos" />
+          {topEstoque.length > 0 ? (
+            <BarChart bars={topEstoque} />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum produto cadastrado.</p>
+          )}
         </Card>
       </div>
 
-      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-1">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader
-            titulo="Preços em evidência"
-            descricao="Os itens mais caros do catálogo."
-            acao={
-              <span className="rounded-full bg-brand-red-soft px-3 py-1.5 text-[11px] font-semibold text-brand-red">
-                Top {maisCaros.length || 0}
-              </span>
-            }
+            titulo="Catálogo por tarja"
+            descricao="Como o estoque está dividido entre livre, prescrito e controlado."
+            acao={<LinkVerTodos to="/produtos">Ver produtos</LinkVerTodos>}
           />
-          <div className="space-y-4">
-            <AreaChart points={pontosPreco} labels={rotulosPreco} formatar={moeda} />
-
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {maisCaros.length > 0 ? (
-                maisCaros.map((produto, indice) => (
-                  <div
-                    key={produto.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl bg-surface-muted px-3 py-2"
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-red-soft text-[11px] font-bold text-brand-red">
-                        {indice + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-ink">{produto.nome}</p>
-                        <p className="text-[11px] text-ink-muted">{produto.categoria}</p>
-                      </div>
-                    </div>
-                    <span className="shrink-0 text-sm font-bold text-brand-red">
-                      {moeda(Number(produto.preco))}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-ink-muted">Nenhum produto cadastrado para mostrar preços.</p>
-              )}
-            </div>
-          </div>
+          {fatiasTarja.some((fatia) => fatia.value > 0) ? (
+            <DonutChart slices={fatiasTarja} total="produtos" />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum produto cadastrado.</p>
+          )}
+          <p className="mt-4 text-sm text-ink-muted">
+            {ativos.length} ativos · valor em estoque {moeda(valorEstoque)}
+          </p>
         </Card>
-      </div>
 
-      {acompanhaValidade && vencendo.length > 0 ? (
         <Card>
           <CardHeader
-            titulo="Vencendo em breve"
-            descricao="Produtos que saem de validade nos próximos 30 dias."
-            acao={
-              <Link
-                to="/produtos/validades"
-                className="rounded-full bg-surface-muted px-4 py-2 text-sm font-semibold text-ink transition hover:bg-brand-green hover:text-white"
-              >
-                Ver todos
-              </Link>
-            }
+            titulo="Estoque crítico"
+            descricao="Itens ativos com menos unidades — candidatos a uma entrada."
           />
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {vencendo.slice(0, 4).map((produto) => {
-              const dias = diasAte(produto.validade);
-              return (
-                <li
-                  key={produto.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-surface-muted px-4 py-3"
+          {estoqueCritico.length > 0 ? (
+            <AreaChart points={pontosEstoque} labels={rotulosEstoque} />
+          ) : (
+            <p className="text-sm text-ink-muted">Nenhum produto ativo para acompanhar.</p>
+          )}
+          <ul className="mt-4 space-y-2">
+            {estoqueCritico.slice(0, 4).map((produto) => (
+              <li key={produto.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate font-medium text-ink">{produto.nome}</span>
+                <span
+                  className={`shrink-0 font-bold ${
+                    produto.quantidadeEstoque <= 5 ? "text-brand-red" : "text-brand-green"
+                  }`}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">{produto.nome}</p>
-                    <p className="text-xs text-ink-muted">{formatarData(produto.validade)}</p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      dias !== null && dias < 0
-                        ? "bg-brand-red-soft text-brand-red"
-                        : "bg-amber-soft text-amber-ink"
-                    }`}
-                  >
-                    {dias !== null && dias < 0 ? "vencido" : `${dias} dias`}
-                  </span>
-                </li>
-              );
-            })}
+                  {produto.quantidadeEstoque} un.
+                </span>
+              </li>
+            ))}
           </ul>
         </Card>
-      ) : null}
-    </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader
+            titulo="Usuários"
+            descricao="Quem já está cadastrado e quem está com o acesso inativo."
+            acao={<LinkVerTodos to="/usuarios">Cadastrar</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={equipe}
+            rowKey={(membro) => membro.id}
+            vazio="Nenhum usuário cadastrado."
+            columns={[
+              {
+                key: "nome",
+                header: "Nome",
+                render: (membro) => (
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-ink">{membro.nome}</p>
+                    <p className="truncate text-[11px] text-ink-muted">{membro.email}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "perfil",
+                header: "Perfil",
+                render: (membro) => (
+                  <Badge dot tone={tonePerfil(membro.perfil)}>
+                    {perfilLabel[membro.perfil]}
+                  </Badge>
+                ),
+              },
+              {
+                key: "status",
+                header: "Acesso",
+                fim: true,
+                render: (membro) => (
+                  <Badge dot tone={membro.isActive ? "green" : "neutral"}>
+                    {membro.isActive ? "Ativo" : "Inativo"}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        <Card>
+          <CardHeader
+            titulo="Entrada de estoque"
+            descricao="Produtos ativos zerados — precisam de reposição."
+            acao={<LinkVerTodos to="/produtos">Dar entrada</LinkVerTodos>}
+          />
+          <MiniTable
+            rows={semEstoque}
+            rowKey={(produto) => produto.id}
+            vazio="Nenhum produto ativo está zerado."
+            columns={[
+              {
+                key: "nome",
+                header: "Produto",
+                render: (produto) => (
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-ink">{produto.nome}</p>
+                    <p className="truncate text-[11px] text-ink-muted">{produto.categoria}</p>
+                  </div>
+                ),
+              },
+              {
+                key: "tarja",
+                header: "Tarja",
+                render: (produto) => (
+                  <Badge tone={toneClassificacao(produto.classificacao)}>
+                    {classificacaoLabel[produto.classificacao]}
+                  </Badge>
+                ),
+              },
+              {
+                key: "estoque",
+                header: "Estoque",
+                fim: true,
+                render: () => <span className="font-bold text-brand-red">0 un.</span>,
+              },
+            ]}
+          />
+        </Card>
+      </div>
+    </>
   );
 }
