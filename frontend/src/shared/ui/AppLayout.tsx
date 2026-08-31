@@ -4,10 +4,18 @@ import { useAuth } from "../auth/AuthContext";
 import { perfilLabel, type Perfil } from "../types/api";
 import { BrandLogo } from "./BrandLogo";
 import { IconButton } from "./Button";
-import { podeAvaliarItens } from "../auth/permissoes";
+import { podeAvaliarItens, podeRegistrarVendaPdv } from "../auth/permissoes";
 import { filhosVisiveis, navItems, pageTitles, perfilPode, type NavItem } from "./nav";
 import { PageTitleContext } from "./usePageTitle";
-import { IconChevronDown, IconClose, IconLogout, IconMenu, IconSearch, IconUser } from "./icons";
+import {
+  IconChevronDown,
+  IconClose,
+  IconLogout,
+  IconMenu,
+  IconRegister,
+  IconSearch,
+  IconUser,
+} from "./icons";
 import { NotificacaoBell } from "../../modules/notificacao/NotificacaoBell";
 
 const iniciais = (nome: string) =>
@@ -210,6 +218,17 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             ))
           : null}
       </nav>
+
+      {podeRegistrarVendaPdv(usuario?.perfil) ? (
+        <NavLink
+          to="/registrar-venda"
+          onClick={onNavigate}
+          className="mb-1 mt-2 flex w-full items-center justify-center gap-2.5 rounded-2xl bg-brand-red px-3 py-3 text-[15px] font-semibold text-white shadow-sm transition hover:bg-brand-red-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-red/50"
+        >
+          <IconRegister size={19} className="shrink-0" />
+          Registrar venda
+        </NavLink>
+      ) : null}
 
       {usuario ? (
         <div className="mt-auto shrink-0 border-t border-line pt-3">

@@ -18,7 +18,9 @@ export class AutorizacaoService implements InterfaceAutorizacaoService {
     }
 
     public async usuarioPodeGerenciarItemVendas(usuarioLogado: Usuario): Promise<boolean> {
-        return usuarioLogado.getPerfil() === Perfil.ATENDENTE || usuarioLogado.getPerfil() === Perfil.CAIXA;
+        return usuarioLogado.getPerfil() === Perfil.ATENDENTE || 
+               usuarioLogado.getPerfil() === Perfil.CAIXA || 
+               usuarioLogado.getPerfil() === Perfil.FARMACEUTICO;
     }
 
     public async usuarioPodeAvaliarItemVendas(usuarioLogado: Usuario): Promise<boolean> {
@@ -46,7 +48,12 @@ export class AutorizacaoService implements InterfaceAutorizacaoService {
     }
     
     public async usuarioPodeGerenciarVendas(usuarioLogado: Usuario): Promise<boolean> {
-        return usuarioLogado.getPerfil() === Perfil.ATENDENTE || usuarioLogado.getPerfil() === Perfil.CAIXA;
+        const perfil = usuarioLogado.getPerfil();
+        return (
+            perfil === Perfil.ATENDENTE ||
+            perfil === Perfil.CAIXA ||
+            perfil === Perfil.FARMACEUTICO
+        );
     }
     
     public async usuarioPodeGerenciarValidades(usuarioLogado: Usuario): Promise<boolean> {

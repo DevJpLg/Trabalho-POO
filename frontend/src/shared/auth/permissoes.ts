@@ -1,4 +1,4 @@
-import type { Perfil } from "../types/api";
+import type { Perfil, StatusVenda } from "../types/api";
 
 /**
  * Espelho das regras de autorização que o backend aplica de fato.
@@ -14,7 +14,7 @@ import type { Perfil } from "../types/api";
  *  - `itemVenda/itemVenda.service.ts` e `itemVenda/validacaoItem/validacaoItem.service.ts`
  */
 
-/** `GET|POST|PUT|DELETE /api/usuarios` → `usuarioService` exige GERENTE. */
+/** `GET|POST|PUT|DELETE /api/usuarios` → cadastro/edição exige GERENTE; listagem também para quem opera vendas. */
 export const PERFIS_GERENCIAM_USUARIOS: Perfil[] = ["GERENTE"];
 
 /** CRUD de produto e `PATCH /api/produtos/:id/entrada` → exigem GERENTE. */
@@ -43,8 +43,13 @@ export const PERFIS_CONSULTAM_PRODUTOS: Perfil[] = [
   "CAIXA",
 ];
 
-/** `GET /api/vendas` não tem checagem de perfil: todo autenticado lista. */
-export const PERFIS_VEEM_VENDAS: Perfil[] = ["GERENTE", "ATENDENTE", "FARMACEUTICO", "CAIXA"];
+export const PERFIS_GERENCIAM_VENDAS: Perfil[] = ["ATENDENTE", "CAIXA", "FARMACEUTICO"];
+
+export const PERFIS_REGISTRAR_VENDA_PDV: Perfil[] = ["ATENDENTE", "CAIXA"];
+
+export const PERFIS_LISTAM_VENDAS: Perfil[] = PERFIS_GERENCIAM_VENDAS;
+
+
 
 export function podeGerenciarUsuarios(perfil?: Perfil): boolean {
   return temPerfil(perfil, PERFIS_GERENCIAM_USUARIOS);
@@ -74,11 +79,34 @@ export function podeGerenciarPrescricoes(perfil?: Perfil): boolean {
   return temPerfil(perfil, PERFIS_GERENCIAM_PRESCRICOES);
 }
 
-/**
- * O GERENTE e o FARMACÊUTICO listam o catálogo completo por `GET /api/produtos`
- * (`usuarioPodeListarProdutos`). Os demais perfis usam `GET /api/produtos/busca`
- * (ativo, na validade e com estoque).
- */
+export function podeGerenciarVendas(perfil?: Perfil): boolean {
+  return temPerfil(perfil, PERFIS_GERENCIAM_VENDAS);
+}
+
+export function podeRegistrarVendaPdv(perfil?: Perfil): boolean {
+  return temPerfil(perfil, PERFIS_REGISTRAR_VENDA_PDV);
+}
+
+/** Só o caixa confirma recebimento quando a venda está aguardando pagamento. */
+export function podeReceberPagamentoVenda(perfil?: Perfil): boolean {
+  return perfil === "CAIXA";
+}
+
+export function vendaAbertaNoPdv(status: StatusVenda): boolean {
+  return status === "EM_ANDAMENTO";
+}
+
+/** Vendas que o operador pode retomar no painel PDV. */
+export function vendaAbrivelNoPdv(perfil: Perfil | undefined, status: StatusVenda): boolean {
+  if (status === "EM_ANDAMENTO") return podeRegistrarVendaPdv(perfil);
+  if (status === "AGUARDANDO_PAGAMENTO") return podeReceberPagamentoVenda(perfil);
+  return false;
+}
+
+export function podeListarVendas(perfil?: Perfil): boolean {
+  return temPerfil(perfil, PERFIS_LISTAM_VENDAS);
+}
+
 export function usaCatalogoCompleto(perfil?: Perfil): boolean {
   return temPerfil(perfil, ["GERENTE", "FARMACEUTICO"]);
 }

@@ -22,7 +22,8 @@ const BUSCA_TODAS = "1900-01-01";
 export interface InterfacePrescricaoRepository {
   listar(): Promise<PrescricaoDTO[]>;
   buscarPorId(id: number): Promise<PrescricaoDTO>;
-  cadastrar(dados: PrescricaoInput): Promise<MessageResponse>;
+  cadastrar(dados: PrescricaoInput, arquivo: File): Promise<MessageResponse>;
+  baixarArquivo(id: number): Promise<Blob>;
   editar(id: number, dados: PrescricaoInput): Promise<MessageResponse>;
   deletar(id: number): Promise<MessageResponse>;
 }
@@ -38,8 +39,24 @@ export class PrescricaoRepository implements InterfacePrescricaoRepository {
     return this.http.get<PrescricaoDTO>(`/prescricoes/${id}`);
   }
 
-  cadastrar(dados: PrescricaoInput): Promise<MessageResponse> {
-    return this.http.post<MessageResponse>("/prescricoes", dados);
+  cadastrar(dados: PrescricaoInput, arquivo: File): Promise<MessageResponse> {
+    const form = new FormData();
+    form.append("numeroPrescricao", dados.numeroPrescricao);
+    form.append("nomeMedico", dados.nomeMedico);
+    form.append("numeroCrm", dados.numeroCrm);
+    form.append("ufCrm", dados.ufCrm);
+    form.append("nomePaciente", dados.nomePaciente);
+    form.append("retencao", String(dados.retencao));
+    form.append("dataEmissao", dados.dataEmissao);
+    form.append("dataValidade", dados.dataValidade);
+    form.append("retida", String(dados.retida));
+    form.append("vendaId", String(dados.vendaId));
+    form.append("arquivo", arquivo);
+    return this.http.postForm<MessageResponse>("/prescricoes", form);
+  }
+
+  baixarArquivo(id: number): Promise<Blob> {
+    return this.http.getBlob(`/prescricoes/${id}/arquivo`);
   }
 
   editar(id: number, dados: PrescricaoInput): Promise<MessageResponse> {

@@ -7,7 +7,7 @@ export interface InterfacePrescricaoService {
   listar(busca?: string): Promise<PrescricaoDTO[]>;
   listarPorVenda(vendaId: number): Promise<PrescricaoDTO[]>;
   buscarPorId(id: number): Promise<PrescricaoDTO>;
-  cadastrar(dados: PrescricaoInput): Promise<MessageResponse>;
+  cadastrar(dados: PrescricaoInput, arquivo: File): Promise<MessageResponse>;
   editar(id: number, dados: PrescricaoInput): Promise<MessageResponse>;
   deletar(id: number): Promise<MessageResponse>;
 }
@@ -59,8 +59,12 @@ export class PrescricaoService implements InterfacePrescricaoService {
     return this.repository.buscarPorId(id);
   }
 
-  cadastrar(dados: PrescricaoInput): Promise<MessageResponse> {
-    return this.repository.cadastrar(dados);
+  cadastrar(dados: PrescricaoInput, arquivo: File): Promise<MessageResponse> {
+    return this.repository.cadastrar(dados, arquivo);
+  }
+
+  baixarArquivo(id: number): Promise<Blob> {
+    return this.repository.baixarArquivo(id);
   }
 
   editar(id: number, dados: PrescricaoInput): Promise<MessageResponse> {

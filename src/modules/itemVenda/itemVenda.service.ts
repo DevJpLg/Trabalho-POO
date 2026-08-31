@@ -72,6 +72,9 @@ export default class ItemVendaService implements InterfaceItemVendaService {
                 }
 
                 const exigeAvaliacao = await this.produtoService.verificarExigeAvaliacaoProduto(produtoId);
+                if (exigeAvaliacao instanceof Error) {
+                    return exigeAvaliacao;
+                }
 
                 const itemCriado = ItemVenda.criarItemVenda(quantidade, precoUnitario, exigeAvaliacao, vendaId, produtoId );
                 if(itemCriado instanceof Error) {
@@ -89,10 +92,10 @@ export default class ItemVendaService implements InterfaceItemVendaService {
     }
 
 
-    /* ! ========== Listar Itens da Venda ========== */
     public async listarItensVenda(usuarioLogado: Usuario, vendaId: number, busca: string = ""): Promise<ItemVenda[] | Error> {
         try {
-            if(!(await this.autorizacaoService.usuarioPodeGerenciarItemVendas(usuarioLogado))) {
+            const podeListar = await this.autorizacaoService.usuarioPodeGerenciarItemVendas(usuarioLogado);
+            if(!podeListar) {
                 return new Error("Usuário não autorizado");
             }
 
@@ -111,7 +114,10 @@ export default class ItemVendaService implements InterfaceItemVendaService {
     /* ! ========== Buscar Item por Id ========== */
     public async buscarItemPorId(usuarioLogado: Usuario, vendaId: number, id: number): Promise<ItemVenda | Error> {
         try {
-            if(!(await this.autorizacaoService.usuarioPodeGerenciarItemVendas(usuarioLogado))) {
+            const podeListar =
+                (await this.autorizacaoService.usuarioPodeGerenciarItemVendas(usuarioLogado)) ||
+                (await this.autorizacaoService.usuarioPodeAvaliarItemVendas(usuarioLogado));
+            if(!podeListar) {
                 return new Error("Usuário não autorizado");
             }
 

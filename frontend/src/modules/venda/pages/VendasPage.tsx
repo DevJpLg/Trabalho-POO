@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../shared/auth/AuthContext";
-import { podeGerenciarUsuarios } from "../../../shared/auth/permissoes";
+import {
+  podeRegistrarVendaPdv,
+  vendaAbrivelNoPdv,
+} from "../../../shared/auth/permissoes";
 import { getErrorMessage } from "../../../shared/http/getErrorMessage";
 import {
   STATUS_VENDA,
   statusVendaLabel,
   type StatusVenda,
-  type UsuarioDTO,
   type VendaDTO,
 } from "../../../shared/types/api";
 import { Badge } from "../../../shared/ui/Badge";
@@ -36,6 +38,7 @@ function statusTone(status: StatusVenda) {
 }
 
 export function VendasPage() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const statusParam = params.get("status");
   const statusFiltro = isStatusVenda(statusParam) ? statusParam : undefined;
@@ -44,10 +47,10 @@ export function VendasPage() {
   const { http, usuario } = useAuth();
   const vendas = useMemo(() => new VendaService(new VendaRepository(http)), [http]);
   const usuarios = useMemo(() => new UsuarioService(new UsuarioRepository(http)), [http]);
-  const listaUsuariosDisponivel = podeGerenciarUsuarios(usuario?.perfil);
+  const podeAbrirNoPdv = podeRegistrarVendaPdv(usuario?.perfil);
 
   const [rows, setRows] = useState<VendaDTO[]>([]);
-  const [equipe, setEquipe] = useState<UsuarioDTO[]>([]);
+  const [mapaNomes, setMapaNomes] = useState<Map<number, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async () => {
@@ -67,30 +70,43 @@ export function VendasPage() {
   }, [carregar]);
 
   useEffect(() => {
-    if (!listaUsuariosDisponivel) return;
     let ativo = true;
+
     usuarios
       .listar("")
       .then((lista) => {
-        if (ativo) setEquipe(lista);
+        if (!ativo) return;
+        const proximo = new Map<number, string>();
+        lista.forEach((membro) => proximo.set(membro.id, membro.nome));
+        setMapaNomes(proximo);
       })
       .catch(() => {
-        if (ativo) setEquipe([]);
+        if (!ativo) return;
+        const proximo = new Map<number, string>();
+        if (usuario) proximo.set(usuario.id, usuario.nome);
+        setMapaNomes(proximo);
       });
+
     return () => {
       ativo = false;
     };
-  }, [usuarios, listaUsuariosDisponivel]);
+  }, [usuarios, usuario]);
 
   function nomeDe(id: number | null): string {
     if (id == null) return "—";
-    const encontrado = equipe.find((membro) => membro.id === id);
-    return encontrado ? encontrado.nome : `#${id}`;
+    return mapaNomes.get(id) ?? `#${id}`;
   }
 
   function aplicarStatus(status: StatusVenda | undefined) {
     if (status) setParams({ status });
     else setParams({});
+  }
+
+  function abrirVendaNoPdv(venda: VendaDTO) {
+    if (!podeAbrirNoPdv || venda.id == null || !vendaAbrivelNoPdv(usuario?.perfil, venda.status)) {
+      return;
+    }
+    navigate(`/registrar-venda?venda=${venda.id}`);
   }
 
   return (
@@ -103,6 +119,16 @@ export function VendasPage() {
           </Button>
         }
       />
+
+      {podeAbrirNoPdv ? (
+        <p className="mb-3 text-sm text-ink-muted">
+          Clique numa venda <strong className="font-semibold text-ink">em aberto</strong>
+          {usuario?.perfil === "CAIXA" ? (
+            <> ou <strong className="font-semibold text-ink">aguardando pagamento</strong></>
+          ) : null}{" "}
+          para continuar no painel de registro.
+        </p>
+      ) : null}
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         <Button
@@ -130,6 +156,16 @@ export function VendasPage() {
         <Table
           rows={rows}
           rowKey={(venda) => venda.id ?? 0}
+          onRowClick={(venda) => {
+            if (
+              !podeAbrirNoPdv ||
+              venda.id == null ||
+              !vendaAbrivelNoPdv(usuario?.perfil, venda.status)
+            ) {
+              return;
+            }
+            abrirVendaNoPdv(venda);
+          }}
           empty={
             <EmptyState
               icone={<IconCart size={22} />}
@@ -146,7 +182,20 @@ export function VendasPage() {
             />
           }
           columns={[
-            { key: "id", header: "ID", render: (venda) => venda.id ?? "—" },
+            {
+              key: "id",
+              header: "ID",
+              render: (venda) =>
+                podeAbrirNoPdv &&
+                venda.id != null &&
+                vendaAbrivelNoPdv(usuario?.perfil, venda.status) ? (
+                  <span className="font-semibold text-brand-green underline decoration-brand-green/40 underline-offset-2">
+                    {venda.id}
+                  </span>
+                ) : (
+                  (venda.id ?? "—")
+                ),
+            },
             { key: "dataHora", header: "Data", render: (venda) => dataHora(venda.dataHora) },
             {
               key: "status",

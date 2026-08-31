@@ -337,6 +337,22 @@ export function IconArrowRight(props: IconProps) {
   );
 }
 
+export function IconArrowLeft(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 12H5M11 6l-6 6 6 6" />
+    </Svg>
+  );
+}
+
+export function IconMinus(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 12h14" />
+    </Svg>
+  );
+}
+
 export function IconEye(props: IconProps) {
   return (
     <Svg {...props}>

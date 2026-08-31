@@ -26,6 +26,7 @@ export default class EmAvaliacaoState implements EstadoVenda {
             throw new Error("Ainda existem itens prescritos não avaliados");
         }
 
+        venda.registrarFarmaceutico(usuarioLogado);
         venda.alterarEstado(EstadoVendaFactory.criar(StatusVenda.AGUARDANDO_PAGAMENTO));
     }
 

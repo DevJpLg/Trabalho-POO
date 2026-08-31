@@ -6,6 +6,8 @@ import {
   PERFIS_AVALIAM_ITENS,
   PERFIS_CONTROLAM_VALIDADE,
   PERFIS_GERENCIAM_PRESCRICOES,
+  PERFIS_LISTAM_VENDAS,
+  PERFIS_REGISTRAR_VENDA_PDV,
 } from "./shared/auth/permissoes";
 import { AppLayout } from "./shared/ui/AppLayout";
 import { LoginPage } from "./modules/autenticacao/pages/LoginPage";
@@ -16,6 +18,7 @@ import { ItensVendaPage } from "./modules/itemVenda/pages/ItensVendaPage";
 import { PrescricoesPage } from "./modules/prescricao/pages/PrescricoesPage";
 import { VendasPage } from "./modules/venda/pages/VendasPage";
 import { AvaliacoesPage } from "./modules/venda/pages/AvaliacoesPage";
+import { PainelVendaPage } from "./modules/venda/pages/PainelVendaPage";
 
 export default function App() {
   return (
@@ -25,11 +28,16 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route element={<ProtectedRoute />}>
+            <Route element={<RoleRoute allow={PERFIS_REGISTRAR_VENDA_PDV} />}>
+              <Route path="registrar-venda" element={<PainelVendaPage />} />
+            </Route>
+
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
 
-              {/* Rotas liberadas para qualquer usuário autenticado pelo backend. */}
-              <Route path="vendas" element={<VendasPage />} />
+              <Route element={<RoleRoute allow={PERFIS_LISTAM_VENDAS} />}>
+                <Route path="vendas" element={<VendasPage />} />
+              </Route>
               <Route path="produtos" element={<ProdutosPage />} />
               {/* A aba aparece para todo mundo; só o gerente vê as ações de cadastro. */}
               <Route path="usuarios" element={<UsuariosPage />} />

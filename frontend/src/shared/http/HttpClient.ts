@@ -46,7 +46,9 @@ export type QueryParams = Record<string, string | number | boolean | undefined>;
 
 export interface InterfaceHttpClient {
   get<T>(path: string, query?: QueryParams, options?: RequestOptions): Promise<T>;
+  getBlob(path: string, options?: RequestOptions): Promise<Blob>;
   post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
+  postForm<T>(path: string, formData: FormData, options?: RequestOptions): Promise<T>;
   put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
   patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T>;
   delete<T = void>(path: string, options?: RequestOptions): Promise<T>;
@@ -70,8 +72,16 @@ export class HttpClient implements InterfaceHttpClient {
     return this.request<T>(this.buildUrl(path, query), { method: "GET" }, options);
   }
 
+  async getBlob(path: string, options?: RequestOptions): Promise<Blob> {
+    return this.requestBlob(this.buildUrl(path), { method: "GET" }, options);
+  }
+
   async post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>(this.buildUrl(path), { method: "POST", body: serializar(body) }, options);
+  }
+
+  async postForm<T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> {
+    return this.request<T>(this.buildUrl(path), { method: "POST", body: formData }, options, true);
   }
 
   async put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
@@ -102,11 +112,16 @@ export class HttpClient implements InterfaceHttpClient {
     return url.pathname + url.search;
   }
 
-  private async request<T>(url: string, init: RequestInit, options?: RequestOptions): Promise<T> {
+  private async request<T>(
+    url: string,
+    init: RequestInit,
+    options?: RequestOptions,
+    corpoFormData = false,
+  ): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set("Accept", "application/json");
 
-    if (init.body !== undefined) {
+    if (init.body !== undefined && !corpoFormData) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -147,6 +162,42 @@ export class HttpClient implements InterfaceHttpClient {
     }
 
     return data as T;
+  }
+
+  private async requestBlob(url: string, init: RequestInit, options?: RequestOptions): Promise<Blob> {
+    const headers = new Headers(init.headers);
+    headers.set("Accept", "application/pdf");
+
+    const token = this.getToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    const timeoutMs = options?.timeoutMs ?? HttpClient.TIMEOUT_PADRAO;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, headers, signal: controller.signal });
+    } catch {
+      if (controller.signal.aborted) {
+        throw new ApiError("A API não respondeu a tempo.", STATUS_TIMEOUT);
+      }
+      throw new ApiError("Não foi possível falar com a API.", STATUS_SEM_CONEXAO);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!response.ok) {
+      const data = await lerCorpo(response);
+      if (response.status === 401) {
+        this.onUnauthorized?.();
+      }
+      throw new ApiError(extrairMensagem(data, response.status), response.status);
+    }
+
+    return response.blob();
   }
 }
 

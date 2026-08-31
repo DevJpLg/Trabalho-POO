@@ -40,13 +40,19 @@ export default class UsuarioRepository implements InterfaceUsuarioRepository {
 
 
     public async listarUsuarios(busca: string): Promise<Usuario | Usuario[] | null> {
-        const resultado = await this.prisma.usuario.findMany({
-            where: { OR: [
-                { nome: { contains: busca } },
-                { email: { contains: busca } },
-                { numeroCRF: { contains: busca } }
-            ]}
-        });
+        const termo = busca.trim();
+        const resultado =
+            termo === ""
+                ? await this.prisma.usuario.findMany()
+                : await this.prisma.usuario.findMany({
+                      where: {
+                          OR: [
+                              { nome: { contains: termo } },
+                              { email: { contains: termo } },
+                              { numeroCRF: { contains: termo } },
+                          ],
+                      },
+                  });
 
         if (resultado.length > 0) { 
             const usuarios = resultado.map((rows) =>

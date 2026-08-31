@@ -19,7 +19,6 @@ export function NotificacaoBell() {
   const [notificacoes, setNotificacoes] = useState<NotificacaoDTO[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [atendendoId, setAtendendoId] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const carregar = useCallback(async () => {
@@ -72,20 +71,9 @@ export function NotificacaoBell() {
     }
   }
 
-  async function aoClicarNotificacao(notificacao: NotificacaoDTO) {
-    setAtendendoId(notificacao.id);
-    setErro(null);
-    try {
-      await service.atender(notificacao.id);
-      setNotificacoes((atuais) => atuais.filter((item) => item.id !== notificacao.id));
-      setAberta(false);
-      navigate(`/avaliacoes?venda=${notificacao.vendaId}`);
-    } catch (err) {
-      setErro(getErrorMessage(err));
-      void carregar();
-    } finally {
-      setAtendendoId(null);
-    }
+  function aoClicarNotificacao(notificacao: NotificacaoDTO) {
+    setAberta(false);
+    navigate(`/avaliacoes?venda=${notificacao.vendaId}`);
   }
 
   const quantidade = notificacoes.length;
@@ -94,7 +82,11 @@ export function NotificacaoBell() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="relative flex size-11 items-center justify-center rounded-full bg-surface text-ink-muted shadow-card ring-1 ring-line transition-all duration-150 hover:bg-surface-hover hover:text-ink active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40"
+        className={`relative flex size-11 items-center justify-center rounded-full shadow-card ring-1 transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green/40 ${
+          quantidade > 0
+            ? "bg-brand-red text-white ring-brand-red/50 hover:bg-brand-red-dark"
+            : "bg-surface text-ink-muted ring-line hover:bg-surface-hover hover:text-ink"
+        }`}
         aria-label="Notificações"
         aria-expanded={aberta}
         aria-haspopup="dialog"
@@ -102,7 +94,7 @@ export function NotificacaoBell() {
       >
         <IconBell size={18} />
         {quantidade > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-bold leading-none text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 animate-pulsar items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold leading-none text-brand-red ring-2 ring-brand-red">
             {quantidade > 9 ? "9+" : quantidade}
           </span>
         ) : null}
@@ -136,8 +128,7 @@ export function NotificacaoBell() {
                   <li key={notificacao.id}>
                     <button
                       type="button"
-                      disabled={atendendoId === notificacao.id}
-                      className="flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition hover:bg-brand-green-soft disabled:opacity-60"
+                      className="flex w-full flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition hover:bg-brand-green-soft"
                       onClick={() => void aoClicarNotificacao(notificacao)}
                     >
                       <span className="text-sm font-semibold text-ink">

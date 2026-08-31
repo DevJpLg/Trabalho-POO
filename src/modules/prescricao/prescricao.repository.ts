@@ -23,7 +23,6 @@ export class PrescricaoRepository implements InterfacePrescricaoRepository {
   public async cadastrarPrescricao(prescricao: Prescricao): Promise<boolean> {
     const resultado = await this.prisma.prescricao.create({
       data: {
-        id: prescricao.getId(),
         numeroPrescricao: prescricao.getNumeroPrescricao(),
         nomeMedico: prescricao.getNomeMedico(),
         numeroCrm: prescricao.getNumeroCrm(),

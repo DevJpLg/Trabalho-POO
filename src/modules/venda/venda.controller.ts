@@ -104,7 +104,16 @@ export class VendaController implements InterfaceVendaController {
 
 
   /* ! ========== Cancelar Venda ========== */
-  async cancelarVenda(_req: Request, res: Response): Promise<void> {
-    res.status(501).json({ message: "Não implementado." });
+  async cancelarVenda(req: Request, res: Response): Promise<void> {
+    const usuarioLogado = req.usuario;
+    const id = Number(req.params.id);
+
+    const resultado = await this.service.cancelarVenda(usuarioLogado as Usuario, id);
+    if (resultado instanceof Error) {
+      res.status(400).json({ message: resultado.message });
+      return;
+    }
+
+    res.status(200).json({ message: "Venda cancelada com sucesso." });
   }
 }

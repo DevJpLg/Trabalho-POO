@@ -2,18 +2,17 @@ import type { ComponentType, SVGProps } from "react";
 import type { Perfil } from "../types/api";
 import {
   IconCart,
-  IconClipboardCheck,
   IconFileMedical,
   IconHome,
   IconPills,
   IconUsers,
 } from "./icons";
 import {
-  PERFIS_AVALIAM_ITENS,
   PERFIS_CONTROLAM_VALIDADE,
   PERFIS_GERENCIAM_PRESCRICOES,
   PERFIS_GERENCIAM_PRODUTOS,
   PERFIS_GERENCIAM_USUARIOS,
+  PERFIS_GERENCIAM_VENDAS,
   temPerfil,
 } from "../auth/permissoes";
 
@@ -63,18 +62,11 @@ export const navItems: NavItem[] = [
     ],
   },
   {
-    id: "avaliacoes",
-    label: "Avaliações",
-    icon: IconClipboardCheck,
-    to: "/avaliacoes",
-    roles: PERFIS_AVALIAM_ITENS,
-  },
-  {
     id: "vendas",
     label: "Vendas",
     icon: IconCart,
     to: "/vendas",
-    roles: ["ATENDENTE", "CAIXA"],
+    roles: PERFIS_GERENCIAM_VENDAS,
   },
   {
     id: "prescricoes",

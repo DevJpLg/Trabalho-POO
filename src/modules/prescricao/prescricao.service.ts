@@ -1,6 +1,6 @@
 import Prescricao from "./index";
 import InterfaceCrmService from "./crm/crm.service";
-import InterfaceVendaService from "../venda";
+import InterfaceVendaService from "../venda/venda.service";
 import InterfacePrescricaoRepository from "./prescricao.repository";
 
 export default interface InterfacePrescricaoService {
@@ -33,27 +33,22 @@ export class PerscricaoService implements InterfacePrescricaoService {
         return new Error('Prescricao já cadastrada');
       }
 
-      const prescricao = await Prescricao.criarPrescricao(numeroPrescricao, nomeMedico, numeroCrm, ufCrm, nomePaciente, retencao, dataEmissao, dataValidade, anexo, retida, vendaId);
-      if(prescricao instanceof Error) {
-        return prescricao;
+      const anexoInformado = (anexo ?? "").trim();
+      if (!anexoInformado) {
+        return new Error("PDF da receita é obrigatório.");
       }
 
-      if(prescricao.getDataEmissao() > new Date()) {
-        return new Error('Data de emissão não pode ser maior que a data atual');
+      const vendaExistente = await this.vendaService.buscarVendaPorId(vendaId);
+      if (!vendaExistente) {
+        return new Error("Venda não encontrada");
       }
 
-      if(prescricao.getDataValidade() < new Date()) {
-        return new Error('Data de validade não pode ser menor que a data atual');
-      }
+      const prescricao = Prescricao.criarPrescricao(numeroPrescricao, nomeMedico, numeroCrm, ufCrm, nomePaciente, retencao, dataEmissao, dataValidade, anexoInformado, retida, vendaId);
 
-      if(prescricao.getDataEmissao() > prescricao.getDataValidade()) {
-        return new Error('Data de emissão não pode ser maior que a data de validade');
-      }
-
-      const crmValido = await this.crmService.validarCrm(prescricao.getNumeroCrm(), prescricao.getUfCrm());
-      if(crmValido instanceof Error) {
-        return crmValido;
-      }
+      // const crmValido = await this.crmService.validarCrm(prescricao.getNumeroCrm(), prescricao.getUfCrm());
+      // if(crmValido instanceof Error) {
+      //   return crmValido;
+      // }
       
       const resultado = await this.repository.cadastrarPrescricao(prescricao);
       if(!resultado) {
@@ -62,6 +57,9 @@ export class PerscricaoService implements InterfacePrescricaoService {
 
       return true;
     } catch (error) {
+      if (error instanceof Error) {
+        return error;
+      }
       return new Error('Erro ao cadastrar prescrição');
     }
   }
@@ -84,7 +82,7 @@ export class PerscricaoService implements InterfacePrescricaoService {
   /* ! ========== Listar Prescrições por Venda ID ========== ! */
   public async listarPrescricoesPorVendaId(vendaId: number): Promise<Prescricao[] | Error> {
     try {
-      const vendaExistente = await this.vendaService.buscarVendaPorId(vendaId); //ta com erro pq n foi implementado ainda
+      const vendaExistente = await this.vendaService.buscarVendaPorId(vendaId);
       if(!vendaExistente) {
         return new Error('Venda não encontrada');
       }

@@ -25,6 +25,7 @@ import { VendaRepository } from "../../venda/venda.repository";
 import { VendaService } from "../../venda/venda.service";
 import { PrescricaoRepository } from "../prescricao.repository";
 import { PrescricaoService } from "../prescricao.service";
+import { validarArquivoPdf, rotuloAnexoPrescricao } from "../prescricaoAnexo";
 
 const ufOptions = UFS.map((uf) => ({ value: uf, label: uf }));
 
@@ -78,6 +79,8 @@ export function PrescricoesPage() {
   const [editing, setEditing] = useState<PrescricaoDTO | null>(null);
   const [form, setForm] = useState<PrescricaoInput>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [arquivoNovo, setArquivoNovo] = useState<File | null>(null);
+  const [nomeArquivoNovo, setNomeArquivoNovo] = useState("");
 
   const carregar = useCallback(
     async (termo: string) => {
@@ -116,6 +119,8 @@ export function PrescricoesPage() {
   function openCreate() {
     setEditing(null);
     setForm({ ...emptyForm, vendaId: vendas[0]?.id ?? 0 });
+    setArquivoNovo(null);
+    setNomeArquivoNovo("");
     setModalOpen(true);
   }
 
@@ -136,13 +141,17 @@ export function PrescricoesPage() {
       toastErro("A data de emissão não pode ser posterior à validade.");
       return;
     }
+    if (!editing && !arquivoNovo) {
+      toastErro("Selecione o PDF da receita.");
+      return;
+    }
 
     setSaving(true);
     try {
       const payload: PrescricaoInput = { ...form, vendaId: Number(form.vendaId) };
       const resultado = editing
         ? await service.editar(Number(editing.id), payload)
-        : await service.cadastrar(payload);
+        : await service.cadastrar(payload, arquivoNovo!);
       toastSucesso(resultado.message);
       setModalOpen(false);
       await carregar(busca);
@@ -363,11 +372,46 @@ export function PrescricoesPage() {
             onChange={(iso) => setForm((atual) => ({ ...atual, dataValidade: iso }))}
           />
           <div className="sm:col-span-2">
-            <Input
-              label="Anexo (link ou identificação do arquivo)"
-              value={form.anexo ?? ""}
-              onChange={(event) => setForm((atual) => ({ ...atual, anexo: event.target.value }))}
-            />
+            {editing ? (
+              <Input
+                label="Arquivo no servidor"
+                value={rotuloAnexoPrescricao(form.anexo)}
+                readOnly
+              />
+            ) : (
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium text-ink">
+                  PDF da receita <span className="text-brand-red">*</span>
+                </span>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  required={!arquivoNovo}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) {
+                      setArquivoNovo(null);
+                      setNomeArquivoNovo("");
+                      return;
+                    }
+                    try {
+                      validarArquivoPdf(file);
+                      setArquivoNovo(file);
+                      setNomeArquivoNovo(file.name);
+                    } catch (err) {
+                      toastErro(getErrorMessage(err));
+                      event.target.value = "";
+                      setArquivoNovo(null);
+                      setNomeArquivoNovo("");
+                    }
+                  }}
+                  className="block w-full text-sm text-ink-muted file:mr-3 file:rounded-lg file:border-0 file:bg-brand-green file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+                />
+                {nomeArquivoNovo ? (
+                  <span className="text-xs text-ink-muted">Arquivo: {nomeArquivoNovo}</span>
+                ) : null}
+              </label>
+            )}
           </div>
 
           <div className="flex flex-wrap items-end gap-5 rounded-2xl bg-surface-muted px-4 py-3 sm:col-span-2">

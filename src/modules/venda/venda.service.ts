@@ -10,6 +10,8 @@ export default interface InterfaceVendaService {
   listarVendas(busca: string, usuarioLogado: Usuario): Promise<Venda[] | Error>;
   registrarVenda(usuarioLogado: Usuario, idAtendente: number | null, idFarmaceutico: number | null, idCaixa: number | null): Promise<boolean | Error>;
   finalizarVenda(usuarioLogado: Usuario, vendaId: number): Promise<void | Error>;
+  cancelarVenda(usuarioLogado: Usuario, vendaId: number): Promise<void | Error>;
+  buscarVendaPorId(vendaId: number): Promise<Venda | Error>;
 }
 
 export class VendaService implements InterfaceVendaService {
@@ -76,6 +78,21 @@ export class VendaService implements InterfaceVendaService {
   }
 
 
+  // ! ========== Buscar uma venda por ID ==========  //
+  public async buscarVendaPorId(vendaId: number): Promise<Venda | Error> {
+    try {
+      const venda = await this.repository.buscarVendaPorId(vendaId);
+      if (venda === null) {
+        return new Error("Venda não encontrada");
+      }
+      return venda;
+    } catch {
+      return new Error("Erro ao buscar venda por ID");
+    }
+  }
+  
+
+  // ! ========== Finalizar uma venda (mudar status) ==========  //
   public async finalizarVenda(usuarioLogado: Usuario, vendaId: number): Promise<void | Error> {
     try {
       if(!(await this.autorizacaoService.usuarioPodeGerenciarVendas(usuarioLogado))) {
@@ -125,6 +142,37 @@ export class VendaService implements InterfaceVendaService {
         return error;
       }
       return new Error("Erro ao finalizar venda");
+    }
+  }
+
+  // ! ========== Cancelar uma venda (mudar status) ==========  //
+  public async cancelarVenda(usuarioLogado: Usuario, vendaId: number): Promise<void | Error> {
+    try {
+      if(!(await this.autorizacaoService.usuarioPodeGerenciarVendas(usuarioLogado))) {
+        return new Error("Usuário não autorizado");
+      }
+
+      const venda = await this.repository.buscarVendaPorId(vendaId);
+      if (venda === null) {
+        throw new Error("Venda não encontrada");
+      }
+
+      await this.associarItensNaVenda(venda);
+
+      const cancelamento = await venda.cancelarVenda();
+      if (cancelamento instanceof Error) {
+        throw cancelamento;
+      }
+
+      const salvo = await this.repository.cancelar(venda);
+      if (!salvo) {
+        throw new Error("Erro ao salvar cancelamento da venda");
+      }
+    } catch (error) {
+      if(error instanceof Error) {
+        return error;
+      }
+      return new Error("Erro ao cancelar venda");
     }
   }
 

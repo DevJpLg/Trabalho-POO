@@ -12,7 +12,6 @@ import {
   IconArrowRight,
   IconCart,
   IconClipboard,
-  IconClipboardCheck,
   IconFileMedical,
   IconPills,
   IconShield,
@@ -39,7 +38,7 @@ const atalhosPorPerfil: Record<Perfil, { to: string; label: string; icone: Icone
   CAIXA: [{ to: "/vendas", label: "Vendas", icone: IconCart }],
   FARMACEUTICO: [
     { to: "/produtos", label: "Produtos", icone: IconPills },
-    { to: "/avaliacoes", label: "Avaliações", icone: IconClipboardCheck },
+    { to: "/vendas", label: "Vendas", icone: IconCart },
     { to: "/prescricoes", label: "Prescrições", icone: IconFileMedical },
   ],
 };
@@ -201,7 +200,7 @@ export function DashboardPage() {
           apoio="controlados e prescritos"
           icon={<IconClipboard />}
           tone="red"
-          to={acompanhaValidade ? "/avaliacoes" : "/vendas?status=EM_AVALIACAO"}
+          to="/vendas?status=EM_AVALIACAO"
         />
       </div>
 

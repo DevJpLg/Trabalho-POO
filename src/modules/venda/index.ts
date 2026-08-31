@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import ItemVenda from "../itemVenda";
-import Usuario from "../usuario";
+import Usuario, { Perfil } from "../usuario";
 import EstadoVenda from "./state";
 import EstadoVendaFactory from "./state/EstadoVendaFactory";
 
@@ -41,6 +41,17 @@ export default class Venda {
     public getIdCaixa(): number | null { return this.idCaixa; }
     public getValorTotal(): number { return this.valorTotal; }
     public getItens(): ItemVenda[] { return this.itens; }
+
+    public registrarFarmaceutico(usuarioLogado: Usuario): void {
+        if (usuarioLogado.getPerfil() !== Perfil.FARMACEUTICO) {
+            throw new Error("Somente o farmacêutico pode ser registrado na avaliação");
+        }
+        const id = usuarioLogado.getId();
+        if (!Number.isInteger(id) || id <= 0) {
+            throw new Error("Farmacêutico inválido");
+        }
+        this.idFarmaceutico = id;
+    }
 
 
     // ! Verificações se a venda está apta a ... //

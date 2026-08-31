@@ -50,7 +50,14 @@ export default class UsuarioService implements InterfaceUsuarioService {
 
     public async listarUsuarios(usuarioLogado: Usuario, busca: string): Promise<Usuario[] | Error> {
         try {
-            if(usuarioLogado.getPerfil() !== Perfil.GERENTE) {
+            const perfil = usuarioLogado.getPerfil();
+            const podeListar =
+                perfil === Perfil.GERENTE ||
+                perfil === Perfil.ATENDENTE ||
+                perfil === Perfil.CAIXA ||
+                perfil === Perfil.FARMACEUTICO;
+
+            if (!podeListar) {
                 return new Error("Usuário não autorizado");
             }
 

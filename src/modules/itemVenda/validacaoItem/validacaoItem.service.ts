@@ -32,11 +32,6 @@ export class validacaoItemService implements InterfaceValidacaoItemService {
                 return new Error("Item já aprovado");
             }
 
-            // Por enquanto não temos venda. Acho que isso é tratado dentro da state
-            // if(!VendaService.vendaEstaEmAvaliacao(vendaId)) {
-            //     return new Error("Venda não permite alteração de itens");
-            // }
-
             itemExistente.registrarAvaliacao(true);
             if(!(await this.repository.atualizarAprovacao(itemExistente))) {
                 return new Error("Erro ao aprovar item");
@@ -61,11 +56,6 @@ export class validacaoItemService implements InterfaceValidacaoItemService {
             if(itemExistente.getAprovadoFarmaceutico()) {
                 return new Error("Item já aprovado não pode ser recusado");
             }
-
-            // Por enquanto não temos venda. Acho que isso é tratado dentro da state
-            // if(!VendaService.vendaEstaEmAvaliacao(vendaId)) {
-            //     return new Error("Venda não permite alteração de itens");
-            // }
 
             itemExistente.registrarAvaliacao(false);
             if(!(await this.repository.atualizarAprovacao(itemExistente))) {
