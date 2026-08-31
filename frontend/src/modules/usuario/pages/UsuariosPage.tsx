@@ -171,7 +171,27 @@ function GestaoDeUsuarios() {
 
     try {
       await service.deletar(usuario.id);
+      setRows((atual) => atual.filter((item) => item.id !== usuario.id));
       toastSucesso("Usuário removido.");
+      await carregar(busca);
+    } catch (err) {
+      toastErro(getErrorMessage(err));
+    }
+  }
+
+  async function onToggleStatus(usuario: UsuarioDTO) {
+    if (usuario.id === usuarioLogado?.id) {
+      toastErro("Você não pode alterar o próprio status de acesso enquanto estiver logado com ele.");
+      return;
+    }
+
+    try {
+      const proximoStatus = !usuario.isActive;
+      const resultado = await service.alternarStatus(usuario.id, proximoStatus);
+      setRows((atual) =>
+        atual.map((item) => (item.id === usuario.id ? { ...item, isActive: proximoStatus } : item)),
+      );
+      toastSucesso(resultado.message);
       await carregar(busca);
     } catch (err) {
       toastErro(getErrorMessage(err));
@@ -230,11 +250,28 @@ function GestaoDeUsuarios() {
               ),
             },
             {
+              key: "status",
+              header: "Status",
+              render: (usuario) => (
+                <Badge dot tone={usuario.isActive ? "green" : "neutral"}>
+                  {usuario.isActive ? "Ativo" : "Inativo"}
+                </Badge>
+              ),
+            },
+            {
               key: "acoes",
               header: "Ações",
               fim: true,
               render: (usuario) => (
                 <RowActions>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={usuario.isActive ? "secondary" : "success"}
+                    onClick={() => void onToggleStatus(usuario)}
+                  >
+                    {usuario.isActive ? "Inativar" : "Ativar"}
+                  </Button>
                   <IconButton label="Editar usuário" onClick={() => openEdit(usuario)}>
                     <IconPencil size={17} />
                   </IconButton>

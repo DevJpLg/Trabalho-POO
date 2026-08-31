@@ -14,6 +14,7 @@ export interface InterfaceUsuarioRepository {
   cadastrar(dados: UsuarioInput): Promise<MessageResponse>;
   editar(id: number, dados: UsuarioInput): Promise<MessageResponse>;
   deletar(id: number): Promise<void>;
+  alternarStatus(id: number, isActive: boolean): Promise<MessageResponse>;
 }
 
 export class UsuarioRepository implements InterfaceUsuarioRepository {
@@ -33,5 +34,9 @@ export class UsuarioRepository implements InterfaceUsuarioRepository {
 
   deletar(id: number): Promise<void> {
     return this.http.delete(`/usuarios/${id}`);
+  }
+
+  alternarStatus(id: number, isActive: boolean): Promise<MessageResponse> {
+    return this.http.patch<MessageResponse>(`/usuarios/${id}/status`, { isActive });
   }
 }

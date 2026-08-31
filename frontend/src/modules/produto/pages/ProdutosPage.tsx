@@ -74,6 +74,26 @@ const emptyForm: ProdutoInput = {
   isActive: true,
 };
 
+function hojeISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function validarDatasProduto(form: ProdutoInput): { fabricacao?: string; validade?: string } {
+  const erros: { fabricacao?: string; validade?: string } = {};
+  const hoje = hojeISO();
+
+  if (form.dataFabricacao && form.validade && form.dataFabricacao > form.validade) {
+    erros.fabricacao = "A data de fabricação não pode ser posterior à data de validade.";
+    erros.validade = "A data de validade deve ser posterior à data de fabricação.";
+  }
+
+  if (form.validade && form.validade <= hoje) {
+    erros.validade = "A data de validade deve ser maior que a data atual.";
+  }
+
+  return erros;
+}
+
 function classificacaoTone(classificacao: Classificacao) {
   if (classificacao === "LIVRE") return "green" as const;
   if (classificacao === "CONTROLADO") return "red" as const;
@@ -91,6 +111,8 @@ function FormularioProduto({
   disabled?: boolean;
   mostrarStatus?: boolean;
 }) {
+  const errosDatas = validarDatasProduto(form);
+
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <Input
@@ -157,6 +179,7 @@ function FormularioProduto({
         required
         disabled={disabled}
         value={form.dataFabricacao ?? ""}
+        error={errosDatas.fabricacao}
         onChange={(iso) => setForm((atual) => ({ ...atual, dataFabricacao: iso }))}
       />
       <DateInput
@@ -164,6 +187,7 @@ function FormularioProduto({
         required
         disabled={disabled}
         value={form.validade ?? ""}
+        error={errosDatas.validade}
         onChange={(iso) => setForm((atual) => ({ ...atual, validade: iso }))}
       />
       <Input
@@ -255,12 +279,15 @@ function FormularioProduto({
           onChange={(event) => setForm((atual) => ({ ...atual, generico: event.target.checked }))}
         />
         {mostrarStatus ? (
-          <Checkbox
-            label="Produto ativo"
+          <Button
+            type="button"
+            variant={form.isActive ? "success" : "secondary"}
+            className="min-w-32"
             disabled={disabled}
-            checked={Boolean(form.isActive)}
-            onChange={(event) => setForm((atual) => ({ ...atual, isActive: event.target.checked }))}
-          />
+            onClick={() => setForm((atual) => ({ ...atual, isActive: !atual.isActive }))}
+          >
+            {form.isActive ? "Ativo" : "Inativo"}
+          </Button>
         ) : null}
       </div>
 
@@ -370,6 +397,13 @@ export function ProdutosPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+
+    const errosDatas = validarDatasProduto(form);
+    if (errosDatas.fabricacao || errosDatas.validade) {
+      toastErro(errosDatas.validade ?? errosDatas.fabricacao ?? "Datas do produto inválidas.");
+      return;
+    }
+
     setSaving(true);
     try {
       const resultado = editing
@@ -395,6 +429,8 @@ export function ProdutosPage() {
       });
       if (!confirmou) return;
       await service.deletar(produto.id);
+      setRows((listaAtual) => listaAtual.filter((item) => item.id !== produto.id));
+      setDetalhe((atual) => (atual && atual.id === produto.id ? null : atual));
       toastSucesso("Produto removido.");
       await load(busca);
     } catch (err) {
@@ -435,6 +471,23 @@ export function ProdutosPage() {
   async function onValidadeSubmit(event: FormEvent) {
     event.preventDefault();
     if (!acaoValidade) return;
+
+    if (!novaValidade) {
+      toastErro("Informe a nova data de validade.");
+      return;
+    }
+
+    const hoje = hojeISO();
+    if (novaValidade <= hoje) {
+      toastErro("A data de validade deve ser maior que a data atual.");
+      return;
+    }
+
+    const dataFabricacao = acaoValidade.dataFabricacao ?? "";
+    if (dataFabricacao && novaValidade <= dataFabricacao) {
+      toastErro("A nova validade deve ser posterior à data de fabricação.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -579,11 +632,11 @@ export function ProdutosPage() {
               className: "text-center",
               render: (produto) =>
                 produto.isActive ? (
-                  <span className="inline-flex text-brand-green" title="Ativo">
+                  <span className="inline-flex text-brand-green" aria-label="Ativo">
                     <IconSquareCheck size={18} />
                   </span>
                 ) : (
-                  <span className="inline-flex text-ink-muted" title="Bloqueado">
+                  <span className="inline-flex text-ink-muted" aria-label="Bloqueado">
                     <IconSquare size={18} />
                   </span>
                 ),

@@ -427,11 +427,6 @@ export function PrescricoesPage() {
             />
           </div>
 
-          <p className="text-xs text-ink-muted sm:col-span-2">
-            O backend valida o CRM em um serviço externo antes de salvar. Se o token
-            <code> CONSULTAR_IO_TOKEN </code> não estiver configurado no <code>.env</code> da API, o
-            cadastro é recusado com “CRM inexistente”.
-          </p>
         </form>
       </Modal>
     </div>

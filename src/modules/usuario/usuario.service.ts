@@ -10,6 +10,7 @@ export default interface InterfaceUsuarioService {
     listarUsuarios(usuarioLogado: Usuario, busca: string): Promise<Usuario[] | Error>;
     editarUsuario(usuarioLogado: Usuario, id: number, nome: string, email: string, senha: string, perfil: Perfil, numeroCRM?: string): Promise<void | Error>;
     deletarUsuario(usuarioLogado: Usuario, id: number): Promise<void | Error>;
+    alterarStatusUsuario(usuarioLogado: Usuario, id: number, ehAtivo: boolean): Promise<void | Error>;
 }
 
 export default class UsuarioService implements InterfaceUsuarioService {
@@ -120,6 +121,26 @@ export default class UsuarioService implements InterfaceUsuarioService {
             }
         } catch (error) {
             return new Error("Erro ao deletar usuário");
+        }
+    }
+
+    public async alterarStatusUsuario(usuarioLogado: Usuario, id: number, ehAtivo: boolean): Promise<void | Error> {
+        try {
+            if(usuarioLogado.getPerfil() !== Perfil.GERENTE) {
+                return new Error("Usuário não autorizado");
+            }
+
+            const usuarioExistente = await this.repository.buscarUsuarioPorId(id);
+            if(!usuarioExistente || usuarioExistente === null) {
+                return new Error("Usuario não encontrado");
+            }
+
+            const resultado = await this.repository.alterarStatusUsuario(id, ehAtivo);
+            if(!resultado) {
+                return new Error("Erro ao alterar status do usuário");
+            }
+        } catch (error) {
+            return new Error("Erro ao alterar status do usuário");
         }
     }
 }

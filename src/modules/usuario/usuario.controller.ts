@@ -7,6 +7,7 @@ export default interface InterfaceUsuarioController {
     listarUsuario(req: Request, res: Response): Promise<void>;
     editarUsuario(req: Request, res: Response): Promise<void>;
     deletarUsuario(req: Request, res: Response): Promise<void>;
+    alterarStatusUsuario(req: Request, res: Response): Promise<void>;
 }
 
 
@@ -22,6 +23,7 @@ export default class UsuarioController implements InterfaceUsuarioController {
             nome: usuario.getNome(),
             email: usuario.getEmail(),
             perfil: usuario.getPerfil(),
+            isActive: usuario.getEhAtivo(),
         };
     }
 
@@ -103,5 +105,20 @@ export default class UsuarioController implements InterfaceUsuarioController {
         }
 
         res.status(204).send();
+    }
+
+    async alterarStatusUsuario(req: Request, res: Response): Promise<void> {
+        const usuarioLogado = req.usuario;
+        const id = Number(req.params.id);
+        const isActive = Boolean(req.body?.isActive);
+
+        const resultado = await this.service.alterarStatusUsuario(usuarioLogado as Usuario, id, isActive);
+
+        if (resultado instanceof Error) {
+            res.status(400).json({ message: resultado.message });
+            return;
+        }
+
+        res.status(200).json({ message: isActive ? "Usuário ativado com sucesso." : "Usuário inativado com sucesso." });
     }
 }

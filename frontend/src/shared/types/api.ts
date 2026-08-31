@@ -33,6 +33,7 @@ export type UsuarioDTO = {
   nome: string;
   email: string;
   perfil: Perfil;
+  isActive: boolean;
 };
 
 export type UsuarioInput = {

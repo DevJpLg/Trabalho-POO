@@ -43,7 +43,8 @@ export class ProdutoService implements InterfaceProdutoService {
                 return new Error("Produto já cadastrado");
             }
 
-            if(dados.classificacao !== Classificacao.LIVRE) {
+            const classificacao = dados.classificacao ?? Classificacao.LIVRE;
+            if(classificacao !== Classificacao.LIVRE) {
                 if(!dados.principioAtivo)        { return new Error("Princípio ativo inválido"); }
                 if(!dados.concentracao)          { return new Error("Concentração inválida"); }
                 if(!dados.formaFarmaceutica)     { return new Error("Formafarmacêutica inválida"); }
@@ -56,7 +57,7 @@ export class ProdutoService implements InterfaceProdutoService {
                 if(typeof dados.generico !== "boolean") { return new Error("Generico inválido"); }
             }
 
-            const produtoCriado = Produto.criarProduto(dados);
+            const produtoCriado = Produto.criarProduto({ ...dados, classificacao });
             if(produtoCriado instanceof Error) {
                 return produtoCriado;
             }
@@ -68,7 +69,7 @@ export class ProdutoService implements InterfaceProdutoService {
             return true;
 
         } catch (error) {
-            return new Error("Erro ao criar produto");
+            return new Error(error instanceof Error ? error.message : "Erro ao criar produto");
         }
     }
 
@@ -117,7 +118,8 @@ export class ProdutoService implements InterfaceProdutoService {
                 return new Error("Produto não encontrado");
             }
 
-            if(dados.classificacao !== Classificacao.LIVRE) {
+            const classificacao = dados.classificacao ?? Classificacao.LIVRE;
+            if(classificacao !== Classificacao.LIVRE) {
                 if(!dados.principioAtivo)        { return new Error("Princípio ativo inválido"); }
                 if(!dados.concentracao)          { return new Error("Concentração inválida"); }
                 if(!dados.formaFarmaceutica)     { return new Error("Formafarmacêutica inválida"); }
@@ -140,7 +142,7 @@ export class ProdutoService implements InterfaceProdutoService {
                 return new Error("Erro ao buscar status do produto");
             }
 
-            const produtoNovo = produtoExistente.editarProduto(dados); 
+            const produtoNovo = produtoExistente.editarProduto({ ...dados, classificacao }); 
             if(produtoNovo instanceof Error) {
                 return produtoNovo;
             }
@@ -150,7 +152,7 @@ export class ProdutoService implements InterfaceProdutoService {
                 return new Error("Erro ao atualizar produto");
             }
         } catch (error) {
-            return new Error("Erro ao editar produto");
+            return new Error(error instanceof Error ? error.message : "Erro ao editar produto");
         }
     }
 

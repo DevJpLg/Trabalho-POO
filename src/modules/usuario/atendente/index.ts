@@ -3,8 +3,8 @@ import { randomInt } from "crypto";
 
 export default class Atendente extends Usuario {
 
-    constructor(id: number, nome: string, email: string, senha: string,) {
-        super(id, nome, email, senha, Perfil.ATENDENTE);
+    constructor(id: number, nome: string, email: string, senha: string, ehAtivo: boolean = true) {
+        super(id, nome, email, senha, Perfil.ATENDENTE, ehAtivo);
     }
 
     public static criarAtendente(nome: string, email: string, senha: string): Atendente {
